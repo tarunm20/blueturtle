@@ -22,13 +22,12 @@ An intelligent AI-powered assistant that connects to your PostgreSQL database an
 ## 🛠️ Tech Stack
 
 ### 💻 Frontend
-- **Next.js** - website design
-- **Tailwind CSS** - styling
+- **Next.js** - website design (planned)
+- **Tailwind CSS** - styling (planned)
 
 ### Backend
 - **FastAPI** — modern, async Python web framework
-- **SQLAlchemy** — ORM + schema introspection
-- **asyncpg** — fast PostgreSQL driver for async queries
+- **psycopg** — fast PostgreSQL driver for async queries
 
 ### 🧠 AI Layer
 - **Ollama** (local LLM) or **OpenAI API** (fallback)
@@ -36,9 +35,9 @@ An intelligent AI-powered assistant that connects to your PostgreSQL database an
 - Schema-aware embeddings (planned)
 
 ### 🛡️ DevOps & Auth
-- **JWT**-based auth (Clerk/NextAuth planned)
-- **Docker** for local development
-- **Stripe** for payment integration (roadmap)
+- **JWT**-based auth (planned)
+- **Docker** for local development (planned) 
+- **Stripe** for payment integration (planned)
 
 ---
 

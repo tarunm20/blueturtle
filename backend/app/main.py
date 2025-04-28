@@ -9,7 +9,7 @@ from app.utils.colors import Colors as C
 
 app = FastAPI(
     title="SQL Assistant API",
-    description="API for generating SQL queries from natural language using LLMs",
+    description="API for generating SQL queries from natural language using LLMs and SQLAlchemy",
     version="1.0.0",
 )
 
@@ -58,10 +58,14 @@ async def log_requests(request: Request, call_next):
 async def root():
     """Root endpoint"""
     print(f"{C.API}[API]{C.RESET} Root endpoint accessed")
-    return {"message": "Welcome to the SQL Assistant API"}
+    return {
+        "message": "Welcome to the SQL Assistant API",
+        "documentation": "/docs",
+        "version": "1.0.0"
+    }
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     print(f"{C.API}[API]{C.RESET} Health check endpoint accessed")
-    return {"status": "healthy"}
+    return {"status": "healthy", "database_backends": ["SQLAlchemy"]}

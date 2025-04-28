@@ -1,44 +1,7 @@
 # app/services/sql_service.py
-import psycopg
 import time
 from app.utils.colors import Colors as C
-
-def get_db_schema(db_url: str) -> str:
-    """Get the schema for a database"""
-    print(f"{C.SQL}[SQL]{C.RESET} Getting database schema from {db_url.split('@')[0]}...")
-    start_time = time.time()
-    
-    try:
-        with psycopg.connect(db_url) as conn:
-            with conn.cursor() as cur:
-                print(f"{C.SQL}[SQL]{C.RESET} Executing schema query...")
-                cur.execute("""
-                    SELECT table_name, column_name, data_type
-                    FROM information_schema.columns
-                    WHERE table_schema = 'public'
-                    ORDER BY table_name, ordinal_position;
-                """)
-                rows = cur.fetchall()
-                print(f"{C.SQL}[SQL]{C.RESET} Retrieved information about {len(rows)} columns")
-
-        # Process schema
-        schema = {}
-        for table, column, dtype in rows:
-            schema.setdefault(table, []).append(f"{column} ({dtype})")
-
-        # Format schema as string
-        schema_str = ""
-        for table, columns in schema.items():
-            schema_str += f"Table: {table}\n  Columns: {', '.join(columns)}\n"
-        
-        process_time = time.time() - start_time
-        print(f"{C.SQL}[SQL]{C.RESET} Schema processed in {process_time:.2f}s, found {len(schema.keys())} tables")
-        
-        return schema_str
-        
-    except Exception as e:
-        print(f"{C.ERROR}[ERROR]{C.RESET} Database schema error: {str(e)}")
-        raise RuntimeError(f"Database schema error: {str(e)}")
+from app.utils.db_utils import test_connection, get_db_schema, execute_sql as execute_sql_query
 
 def create_prompt(user_prompt: str, db_schema: str) -> str:
     """Create a prompt for the LLM"""
@@ -67,41 +30,52 @@ def create_prompt(user_prompt: str, db_schema: str) -> str:
     print(f"{C.SQL}[PROMPT]{C.RESET} Prompt created (length: {len(prompt)} chars)")
     return prompt
 
-def execute_sql(sql: str, db_url: str):
+def get_schema(db_config: dict) -> tuple:
+    """Get the schema for a database"""
+    print(f"{C.SQL}[SQL]{C.RESET} Getting database schema...")
+    start_time = time.time()
+    
+    try:
+        schema_str, schema_dict = get_db_schema(db_config)
+        
+        process_time = time.time() - start_time
+        print(f"{C.SQL}[SQL]{C.RESET} Schema processed in {process_time:.2f}s")
+        
+        return schema_str, schema_dict
+        
+    except Exception as e:
+        print(f"{C.ERROR}[ERROR]{C.RESET} Database schema error: {str(e)}")
+        raise RuntimeError(f"Database schema error: {str(e)}")
+
+def execute_sql(sql: str, db_config: dict) -> dict:
     """Execute SQL and return results"""
     print(f"{C.SQL}[SQL]{C.RESET} Executing query: {sql}")
     start_time = time.time()
 
     try:
-        with psycopg.connect(db_url) as conn:
-            with conn.cursor() as cur:
-                print(f"{C.SQL}[SQL]{C.RESET} Connected to database, executing query...")
-                cur.execute(sql)
-                
-                columns = [desc.name for desc in cur.description]
-                rows = cur.fetchall()
-                
-                process_time = time.time() - start_time
-                print(f"{C.SQL}[SQL]{C.RESET} Query executed in {process_time:.2f}s, returned {len(rows)} rows")
-                
-                return {"columns": columns, "rows": rows}
+        result = execute_sql_query(sql, db_config)
+        
+        process_time = time.time() - start_time
+        print(f"{C.SQL}[SQL]{C.RESET} Query executed in {process_time:.2f}s")
+        
+        return result
                 
     except Exception as e:
         print(f"{C.ERROR}[ERROR]{C.RESET} SQL execution failed: {str(e)}")
         raise RuntimeError(f"SQL error: {str(e)}")
 
-def test_connection(db_url: str) -> dict:
+def test_db_connection(db_config: dict) -> dict:
     """Test if a database connection is valid"""
     print(f"{C.SQL}[SQL]{C.RESET} Testing connection to database...")
     start_time = time.time()
     
     try:
-        with psycopg.connect(db_url) as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1")
-                process_time = time.time() - start_time
-                print(f"{C.SQL}[SQL]{C.RESET} Connection test successful ({process_time:.2f}s)")
-                return {"success": True, "message": "Connection successful"}
+        result = test_connection(db_config)
+        
+        process_time = time.time() - start_time
+        print(f"{C.SQL}[SQL]{C.RESET} Connection test completed in {process_time:.2f}s")
+        
+        return result
     except Exception as e:
         print(f"{C.ERROR}[ERROR]{C.RESET} Connection test failed: {str(e)}")
         return {"success": False, "message": str(e)}

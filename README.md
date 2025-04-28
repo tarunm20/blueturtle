@@ -46,8 +46,8 @@ An intelligent AI-powered assistant that connects to your PostgreSQL database an
 ### ✅ MVP (April 2025)
 - [x] FastAPI backend with PostgreSQL connection
 - [x] Natural language to SQL via LLM
-- [ ] Query result viewer
-- [ ] Export results to CSV
+- [x] Query result viewer
+- [ ] Chat feature
 
 
 ### 🔜 Near-Term Goals (May 2025)

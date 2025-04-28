@@ -13,6 +13,9 @@ async def generate_sql(provider: str, model: str, url: str, prompt: str) -> str:
     
     if provider == "ollama":
         return await handle_ollama_request(url, model, prompt)
+    elif provider == "openai":
+        print(f"{C.ERROR}[ERROR]{C.RESET} OpenAI implementation not complete")
+        raise ValueError(f"OpenAI implementation not complete")
     else:
         print(f"{C.ERROR}[ERROR]{C.RESET} Unsupported LLM provider: {provider}")
         raise ValueError(f"Unsupported LLM provider: {provider}")
@@ -21,6 +24,14 @@ async def handle_ollama_request(url: str, model: str, prompt: str) -> str:
     """Handle requests to Ollama API"""
     print(f"{C.LLM}[LLM]{C.RESET} Sending request to Ollama at {url}")
     request_start = time.time()
+    
+    # Use default URL if not provided
+    if not url:
+        url = "http://localhost:11434/api/generate"
+    
+    # Use default model if not provided
+    if not model:
+        model = "llama3.2"
     
     async with httpx.AsyncClient() as client:
         try:
@@ -102,6 +113,10 @@ async def probe_llm_provider(provider: str, url: str) -> dict:
 async def get_ollama_models(url: str) -> list:
     """Get available models from an Ollama server"""
     print(f"{C.LLM}[LLM]{C.RESET} Getting available Ollama models...")
+    
+    # Default URL if not provided
+    if not url:
+        url = "http://localhost:11434"
     
     # Extract the base URL (remove the /api/generate part if present)
     base_url = url

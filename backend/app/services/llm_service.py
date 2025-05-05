@@ -4,8 +4,8 @@ import json
 import time
 import re
 from fastapi import HTTPException
-from app.utils.response_parser import parse_ollama_response
 from app.utils.colors import Colors as C
+from app.utils.response_parser import parse_ollama_response;
 
 async def generate_sql(provider: str, model: str, url: str, prompt: str) -> str:
     """Generate SQL from natural language using an LLM"""
@@ -36,38 +36,35 @@ async def handle_ollama_request(url: str, model: str, prompt: str) -> str:
     async with httpx.AsyncClient() as client:
         try:
             print(f"{C.LLM}[LLM]{C.RESET} Requesting completion from model {model}...")
+            
+            # Request with JSON format option
             response = await client.post(url, json={
                 "model": model,
                 "prompt": prompt,
-                "stream": True,
-                "format": "json",
-            })
+                "stream": False,
+                "format": "json"
+            }, timeout=60.0)
 
             print(f"{C.LLM}[LLM]{C.RESET} Ollama responded with status {response.status_code}")
             response.raise_for_status()
 
-            generated_response = ""
-            print(f"{C.LLM}[LLM]{C.RESET} Starting to receive streaming response...")
-            
-            async for line in response.aiter_lines():
-                if line.strip() == "":
-                    continue
-                try:
-                    data = json.loads(line)
-                    if "response" in data:
-                        generated_response += data["response"]
-                    if data.get("done", False):
-                        break
-                except json.JSONDecodeError:
-                    continue
-            
+            # Parse the JSON response
+            response_data = response.json()
             total_time = time.time() - request_start
-            print(f"{C.LLM}[LLM]{C.RESET} Received full response in {total_time:.2f}s")
+            print(f"{C.LLM}[LLM]{C.RESET} Received response in {total_time:.2f}s")
             
-            sql = parse_ollama_response(generated_response)
-            print(f"{C.LLM}[LLM]{C.RESET} Extracted SQL query: {sql}")
-            
-            return sql
+            # Extract the response text
+            if "response" in response_data:
+                response_text = response_data["response"]
+                
+                # Use the existing response parser to extract SQL
+                sql = parse_ollama_response(response_text)
+                print(f"{C.LLM}[LLM]{C.RESET} Extracted SQL query: {sql}")
+                
+                return sql
+            else:
+                print(f"{C.ERROR}[ERROR]{C.RESET} Unexpected response format")
+                raise ValueError("Unexpected response format from LLM")
             
         except httpx.HTTPStatusError as e:
             print(f"{C.ERROR}[ERROR]{C.RESET} Ollama API error: {e.response.status_code} - {e.response.text}")

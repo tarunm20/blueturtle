@@ -3,8 +3,8 @@ from fastapi import APIRouter, HTTPException, Request
 import time
 import uuid
 from app.models.sql import GenerateSQLRequest, GenerateSQLResponse, ExecuteSQLRequest, ExecuteSQLResponse
-from app.models.db import DbConnectionRequest, DbConnectionResponse, SchemaResponse
 from app.services import sql_service, llm_service
+from app.utils.prompt_builder import build_llm_prompt
 
 router = APIRouter(tags=["sql"])
 
@@ -20,9 +20,9 @@ async def generate_sql(request: Request, req: GenerateSQLRequest):
         print(f"[API:{request_id}] Getting database schema")
         schema_str, _ = sql_service.get_schema(req.db_connection.dict())
         
-        # Create prompt
-        print(f"[API:{request_id}] Creating prompt")
-        prompt = sql_service.create_prompt(req.user_prompt, schema_str)
+        # Create prompt with schema
+        print(f"[API:{request_id}] Creating prompt with schema")
+        prompt = build_llm_prompt(req.user_prompt, schema_str)
         
         # Generate SQL
         provider = req.llm_config.provider
@@ -67,22 +67,22 @@ async def execute_sql(request: Request, req: ExecuteSQLRequest):
         print(f"[ERROR:{request_id}] SQL execution failed after {process_time:.2f}s: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/test_db_connection", response_model=DbConnectionResponse)
-async def test_db_connection(request: Request, db_config: DbConnectionRequest):
+@router.post("/test_db_connection")
+async def test_db_connection(request: Request, db_config: dict):
     """Test if a database connection is valid"""
     request_id = str(uuid.uuid4())[:8]
     print(f"[API:{request_id}] Test database connection request")
     
     try:
-        result = sql_service.test_db_connection(db_config.dict())
+        result = sql_service.test_db_connection(db_config)
         print(f"[API:{request_id}] Connection test result: {result['success']}")
         return result
     except Exception as e:
         print(f"[ERROR:{request_id}] Connection test error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/get_db_schema", response_model=SchemaResponse)
-async def get_db_schema_endpoint(request: Request, db_config: DbConnectionRequest):
+@router.post("/get_db_schema")
+async def get_db_schema_endpoint(request: Request, db_config: dict):
     """Get the database schema in a structured format"""
     request_id = str(uuid.uuid4())[:8]
     print(f"[API:{request_id}] Get database schema request")
@@ -90,10 +90,10 @@ async def get_db_schema_endpoint(request: Request, db_config: DbConnectionReques
     
     try:
         # Get the schema
-        _, schema_dict = sql_service.get_schema(db_config.dict())
+        _, schema_dict = sql_service.get_schema(db_config)
         
         process_time = time.time() - start_time
-        print(f"[API:{request_id}] Schema processed in {process_time:.2f}s, found {len(schema_dict)} tables")
+        print(f"[API:{request_id}] Schema processed in {process_time:.2f}s")
         
         return {"success": True, "schema": schema_dict}
     except Exception as e:

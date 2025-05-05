@@ -31,6 +31,7 @@ import {
 import { ConfigSidebar } from "./_components/ConfigSidebar";
 import { DatabaseSchemaViewer } from "./_components/DatabaseSchemaViewer";
 import { ChatMessageComponent } from "./_components/ChatMessageComponent";
+import { ErrorHandling } from "./_components/ErrorHandling";
 
 // Base URL for API calls
 const API_BASE_URL = "http://127.0.0.1:8000";
@@ -436,28 +437,11 @@ const ChatPage: React.FC = () => {
                   </div>
                   
                   {error && (
-                    <Alert variant="destructive" className="mb-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <AlertCircle className="h-4 w-4 mr-2" />
-                          <div>
-                            <AlertTitle>Error</AlertTitle>
-                            <AlertDescription>{error}</AlertDescription>
-                          </div>
-                        </div>
-                        
-                        {/* Regenerate button for when there's an error */}
-                        {messages.length > 0 && messages[messages.length - 2]?.role === "user" && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={handleRegenerate}
-                          >
-                            Regenerate
-                          </Button>
-                        )}
-                      </div>
-                    </Alert>
+                    <ErrorHandling 
+                      error={error} 
+                      onRegenerate={handleRegenerate}
+                      showRegenerate={messages.length > 0 && messages[messages.length - 2]?.role === "user"}
+                    />
                   )}
                 </CardContent>
                 

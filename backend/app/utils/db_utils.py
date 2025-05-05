@@ -77,7 +77,7 @@ def test_connection(db_config: dict) -> dict:
         print(f"{C.ERROR}[ERROR]{C.RESET} Unexpected error: {str(e)}")
         return {"success": False, "message": f"Error: {str(e)}"}
 
-def get_db_schema(db_config: dict) -> str:
+def get_db_schema(db_config: dict) -> tuple:
     """Get database schema as a string using SQLAlchemy"""
     print(f"{C.SQL}[SQL]{C.RESET} Getting database schema...")
     
@@ -88,10 +88,10 @@ def get_db_schema(db_config: dict) -> str:
         inspector = inspect(engine)
         
         # Get all table names
-        table_names = inspector.get_table_names(schema='public')
+        table_names = inspector.get_table_names()
         print(f"{C.SQL}[SQL]{C.RESET} Found {len(table_names)} tables")
         
-        # Build schema string
+        # Build schema string and dict
         schema_str = ""
         schema_dict = {}
         
@@ -103,8 +103,32 @@ def get_db_schema(db_config: dict) -> str:
                 col_type = str(column['type'])
                 columns.append(f"{col_name} ({col_type})")
             
+            # Get primary key info
+            pk_constraint = inspector.get_pk_constraint(table_name)
+            pk_columns = pk_constraint.get('constrained_columns', [])
+            
+            # Get foreign key info
+            fk_info = []
+            for fk in inspector.get_foreign_keys(table_name):
+                if fk['constrained_columns'] and fk['referred_table']:
+                    fk_col = fk['constrained_columns'][0]
+                    ref_table = fk['referred_table']
+                    ref_col = fk['referred_columns'][0] if fk['referred_columns'] else 'id'
+                    fk_info.append(f"{fk_col} -> {ref_table}.{ref_col}")
+            
+            # Add primary and foreign key info to schema string
+            pk_info = f"Primary key: {', '.join(pk_columns)}" if pk_columns else ""
+            fk_str = f"Foreign keys: {', '.join(fk_info)}" if fk_info else ""
+            
             schema_dict[table_name] = columns
             schema_str += f"Table: {table_name}\n  Columns: {', '.join(columns)}\n"
+            
+            if pk_info:
+                schema_str += f"  {pk_info}\n"
+            if fk_str:
+                schema_str += f"  {fk_str}\n"
+            
+            schema_str += "\n"
         
         return schema_str, schema_dict
     
@@ -112,7 +136,7 @@ def get_db_schema(db_config: dict) -> str:
         print(f"{C.ERROR}[ERROR]{C.RESET} Schema retrieval error: {str(e)}")
         raise ValueError(f"Failed to retrieve schema: {str(e)}")
 
-def execute_sql(sql: str, db_config: dict):
+def execute_sql(sql: str, db_config: dict) -> dict:
     """Execute SQL query and return results"""
     print(f"{C.SQL}[SQL]{C.RESET} Executing query: {sql}")
     

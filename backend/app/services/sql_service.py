@@ -3,33 +3,6 @@ import time
 from app.utils.colors import Colors as C
 from app.utils.db_utils import test_connection, get_db_schema, execute_sql as execute_sql_query
 
-def create_prompt(user_prompt: str, db_schema: str) -> str:
-    """Create a prompt for the LLM"""
-    print(f"{C.SQL}[PROMPT]{C.RESET} Building prompt for query: '{user_prompt[:50]}...'")
-    
-    prompt = f"""
-    You are an expert SQL assistant.
-    Given the following database schema and a user request, write a correct SQL SELECT query that fulfills the request.
-    Your query must only use standard SQL features and functions.
-
-    Schema:
-    {db_schema}
-
-    User request:
-    {user_prompt}
-    
-    Output only the SQL. Do not include explanations, comments, or additional text.
-    The output must be a valid SQL query that can be executed directly on the database.
-    Format the response as a single-line SQL query with no unnecessary whitespace or line breaks.
-    Return a single JSON object in the following format:
-    {{
-    "query": "your_query_here"
-    }}
-    """
-    
-    print(f"{C.SQL}[PROMPT]{C.RESET} Prompt created (length: {len(prompt)} chars)")
-    return prompt
-
 def get_schema(db_config: dict) -> tuple:
     """Get the schema for a database"""
     print(f"{C.SQL}[SQL]{C.RESET} Getting database schema...")

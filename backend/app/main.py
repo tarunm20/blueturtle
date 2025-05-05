@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import time
 import uuid
 from app.config import settings
-from app.api import sql, llm
+from app.api import sql, llm, chat
 from app.utils.colors import Colors as C
 
 app = FastAPI(
@@ -25,6 +25,7 @@ app.add_middleware(
 # Include routers
 app.include_router(sql.router)
 app.include_router(llm.router)
+app.include_router(chat.router)
 
 # Add basic request logging middleware
 @app.middleware("http")

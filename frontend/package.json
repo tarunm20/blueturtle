@@ -47,7 +47,6 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
-    "@supabase/auth-helpers-nextjs": "^0.10.0",
     "axios": "^1.9.0"
   }
 }

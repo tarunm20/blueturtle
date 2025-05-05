@@ -1,8 +1,6 @@
 # app/services/llm_service.py
 import httpx
-import json
 import time
-import re
 from fastapi import HTTPException
 from app.utils.colors import Colors as C
 from app.utils.response_parser import parse_ollama_response;
@@ -165,3 +163,84 @@ def get_supported_providers() -> dict:
             }
         ]
     }
+
+async def generate_chat_response(provider: str, model: str, url: str, prompt: str) -> dict:
+    """Generate a chat response from the LLM"""
+    print(f"{C.LLM}[LLM]{C.RESET} Generating chat response using provider: {provider}, model: {model}")
+    
+    if provider == "ollama":
+        return await handle_ollama_chat_request(url, model, prompt)
+    elif provider == "openai":
+        print(f"{C.ERROR}[ERROR]{C.RESET} OpenAI implementation not complete")
+        raise ValueError(f"OpenAI implementation not complete")
+    else:
+        print(f"{C.ERROR}[ERROR]{C.RESET} Unsupported LLM provider: {provider}")
+        raise ValueError(f"Unsupported LLM provider: {provider}")
+
+async def handle_ollama_chat_request(url: str, model: str, prompt: str) -> dict:
+    """Handle chat requests to Ollama API"""
+    print(f"{C.LLM}[LLM]{C.RESET} Sending chat request to Ollama at {url}")
+    request_start = time.time()
+    
+    # Use default URL if not provided
+    if not url:
+        url = "http://localhost:11434/api/generate"
+    
+    # Use default model if not provided
+    if not model:
+        model = "llama3.2"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            print(f"{C.LLM}[LLM]{C.RESET} Requesting chat completion from model {model}...")
+            
+            # Request with JSON format option
+            response = await client.post(url, json={
+                "model": model,
+                "prompt": prompt,
+                "stream": False,
+                "format": "json"
+            }, timeout=60.0)
+
+            print(f"{C.LLM}[LLM]{C.RESET} Ollama responded with status {response.status_code}")
+            response.raise_for_status()
+
+            # Parse the JSON response
+            response_data = response.json()
+            total_time = time.time() - request_start
+            print(f"{C.LLM}[LLM]{C.RESET} Received response in {total_time:.2f}s")
+            
+            # Extract the response text
+            if "response" in response_data:
+                response_text = response_data["response"]
+                
+                # Try to parse as JSON
+                try:
+                    chat_response = json.loads(response_text)
+                    print(f"{C.LLM}[LLM]{C.RESET} Successfully parsed JSON response")
+                    
+                    # If successfully parsed as JSON, return it
+                    return chat_response
+                except json.JSONDecodeError:
+                    # If not valid JSON, just return the text as content
+                    print(f"{C.LLM}[LLM]{C.RESET} Response not in JSON format, returning as content")
+                    return {
+                        "content": response_text,
+                        "tokens_used": response_data.get("eval_count", 0)
+                    }
+            else:
+                print(f"{C.ERROR}[ERROR]{C.RESET} Unexpected response format")
+                raise ValueError("Unexpected response format from LLM")
+            
+        except httpx.HTTPStatusError as e:
+            print(f"{C.ERROR}[ERROR]{C.RESET} Ollama API error: {e.response.status_code} - {e.response.text}")
+            raise HTTPException(
+                status_code=e.response.status_code,
+                detail=f"Ollama API error: {e.response.text}"
+            )
+        except Exception as e:
+            print(f"{C.ERROR}[ERROR]{C.RESET} LLM request failed: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"LLM error: {str(e)}"
+            )

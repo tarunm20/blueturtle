@@ -1,5 +1,4 @@
-// types.ts - Type definitions for the chat application
-
+// frontend/apps/web/app/home/types.ts
 export type DatabaseType = "postgres" | "mysql" | "mssql" | "sqlite";
 export type ModelType = "ollama" | "openai" | "custom";
 export type ConnectionStatus = "success" | "error" | "loading" | null;
@@ -11,6 +10,7 @@ export interface DBSchema {
 
 // Message types
 export interface BaseMessage {
+  id?: string;
   role: "user" | "assistant" | "system";
   content: string;
 }
@@ -30,7 +30,16 @@ export interface SystemMessage extends BaseMessage {
   results?: QueryResult;
 }
 
-export type ChatMessage = UserMessage | AssistantMessage | SystemMessage;
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  sql?: string;
+  results?: {
+    columns: string[];
+    rows: any[][];
+  };
+}
 
 export interface QueryResult {
   columns: string[];
@@ -63,9 +72,9 @@ export interface DbConnectionResponse {
 
 export interface LLMConfig {
   provider: ModelType;
-  model: string | undefined;
-  url: string | undefined;
-  apiKey: string | undefined;
+  model?: string;
+  url?: string;
+  apiKey?: string;
 }
 
 export interface GenerateSqlRequest {
@@ -78,3 +87,4 @@ export interface ExecuteSqlRequest {
   sql: string;
   db_connection: DbConnectionRequest;
 }
+

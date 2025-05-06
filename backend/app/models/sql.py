@@ -14,19 +14,17 @@ class LLMConfig(BaseModel):
         # This ensures extra attributes are ignored
         extra = "ignore"
 
+class ChatMessage(BaseModel):
+    """Chat message model"""
+    role: str
+    content: str
+
 class GenerateSQLRequest(BaseModel):
     """Request to generate SQL from natural language"""
     user_prompt: str
+    message_history: Optional[List[ChatMessage]] = None
     db_connection: DbConnectionRequest
-    llm_config: LLMConfig = Field(
-        default=LLMConfig(
-            provider="ollama",
-            model="llama3.2",
-            url="http://localhost:11434/api/generate"
-        ),
-        description="LLM configuration parameters"
-    )
-
+    llm_config: LLMConfig = Field(...)
 class GenerateSQLResponse(BaseModel):
     """Response containing generated SQL"""
     sql: str

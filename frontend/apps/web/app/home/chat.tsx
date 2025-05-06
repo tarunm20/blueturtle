@@ -225,7 +225,7 @@ const ChatPage: React.FC = () => {
     try {
       // Add user message to chat
       const userMessage: UserMessage = { role: "user", content: userPrompt };
-      setMessages(prev => [...prev, userMessage]);
+      setMessages(prev => [...prev, { ...userMessage, id: userMessage.id || `user-message-${Date.now()}` }]);
       
       // Configure the request
       const dbConnectionRequest = createDbConnectionRequest();
@@ -247,7 +247,7 @@ const ChatPage: React.FC = () => {
         sql: res.data.sql,
         executing: false
       };
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages(prev => [...prev, { ...assistantMessage, id: assistantMessage.id || `assistant-message-${Date.now()}` }]);
       
     } catch (error) {
       console.error("Error during request:", error);
@@ -267,7 +267,7 @@ const ChatPage: React.FC = () => {
         role: "system", 
         content: errorMessage
       };
-      setMessages(prev => [...prev, errorSystemMessage]);
+      setMessages(prev => [...prev, { ...errorSystemMessage, id: errorSystemMessage.id || `system-message-${Date.now()}` }]);
     } finally {
       setLoading(false);
       setUserPrompt(""); // Clear the input field
@@ -292,7 +292,7 @@ const ChatPage: React.FC = () => {
         role: "system", 
         content: "Executing SQL query..." 
       };
-      setMessages(prev => [...prev, executingMessage]);
+      setMessages(prev => [...prev, { ...executingMessage, id: executingMessage.id || `system-message-${Date.now()}` }]);
       
       const requestData: ExecuteSqlRequest = {
         sql: sql,
@@ -314,7 +314,7 @@ const ChatPage: React.FC = () => {
         content: "Query executed successfully", 
         results: res.data 
       };
-      setMessages(prev => [...prev, resultsMessage]);
+      setMessages(prev => [...prev, { ...resultsMessage, id: resultsMessage.id || "system-message-" + Date.now() }]);
       
     } catch (error) {
       console.error("Error during SQL execution:", error);
@@ -341,7 +341,7 @@ const ChatPage: React.FC = () => {
         role: "system", 
         content: errorMessage
       };
-      setMessages(prev => [...prev, errorMessage2]);
+      setMessages(prev => [...prev, errorMessage2 as ChatMessage]);
     } finally {
       setExecuting(false);
     }

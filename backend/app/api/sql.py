@@ -4,7 +4,7 @@ import time
 import uuid
 from app.models.sql import GenerateSQLRequest, GenerateSQLResponse, ExecuteSQLRequest, ExecuteSQLResponse
 from app.services import sql_service, llm_service
-from app.utils.prompt_builder import build_llm_prompt
+from app.utils.prompt_builder import build_llm_prompt, build_llm_prompt_with_history
 
 router = APIRouter(tags=["sql"])
 
@@ -17,12 +17,15 @@ async def generate_sql(request: Request, req: GenerateSQLRequest):
     
     try:
         # Get database schema
-        print(f"[API:{request_id}] Getting database schema")
         schema_str, _ = sql_service.get_schema(req.db_connection.dict())
         
-        # Create prompt with schema
-        print(f"[API:{request_id}] Creating prompt with schema")
-        prompt = build_llm_prompt(req.user_prompt, schema_str)
+        # Create prompt with schema and message history
+        print(f"[API:{request_id}] Creating prompt with schema and history")
+        prompt = build_llm_prompt_with_history(
+            req.user_prompt, 
+            schema_str,
+            req.message_history
+        )
         
         # Generate SQL
         provider = req.llm_config.provider

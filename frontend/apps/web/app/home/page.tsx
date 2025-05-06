@@ -4,10 +4,7 @@ import ChatPage from './chat';
 export default function HomePage() {
   return (
     <>
-      <PageHeader description={'Your SaaS at a glance'} />
-        <ChatPage />
-      <PageBody>
-      </PageBody>
+      <ChatPage />
     </>
   );
 }

@@ -1,11 +1,10 @@
-// ConfigSidebar.tsx - Sidebar component for configuration
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@kit/ui/card";
 import { Button } from "@kit/ui/button";
 import { Input } from "@kit/ui/input";
 import { Spinner } from "@kit/ui/spinner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@kit/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@kit/ui/tabs";
-import { Database, AlertCircle, CheckCircle, LockKeyhole } from "lucide-react";
+import { Database, AlertCircle, CheckCircle, LockKeyhole, X } from "lucide-react";
 import { DatabaseType, ModelType, ConnectionStatus } from "../types";
 
 interface ConfigSidebarProps {
@@ -34,6 +33,7 @@ interface ConfigSidebarProps {
   testDbConnection: () => Promise<void>;
   testModelConnection: () => Promise<void>;
   fetchingSchema: boolean;
+  onClose?: () => void;
 }
 
 export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({ 
@@ -49,7 +49,8 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
   customModel, setCustomModel,
   dbStatus, modelStatus,
   testDbConnection, testModelConnection,
-  fetchingSchema
+  fetchingSchema,
+  onClose
 }) => {
   // Default ports for different database types
   const getDefaultPort = () => {
@@ -74,15 +75,23 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
 
   return (
     <Card className="h-full">
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center">
-          <Database className="h-5 w-5 mr-2" />
-          Connections
-        </CardTitle>
-        <CardDescription>
-          Configure your database and model
-        </CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="text-lg flex items-center">
+            <Database className="h-5 w-5 mr-2" />
+            Connections
+          </CardTitle>
+          <CardDescription>
+            Configure your database and model
+          </CardDescription>
+        </div>
+        {onClose && (
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X className="h-5 w-5" />
+          </Button>
+        )}
       </CardHeader>
+      
       <CardContent className="space-y-6">
         <Tabs defaultValue="database">
           <TabsList className="w-full">

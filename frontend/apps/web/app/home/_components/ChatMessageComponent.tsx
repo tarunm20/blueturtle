@@ -1,3 +1,5 @@
+// frontend/apps/web/app/home/_components/ChatMessageComponent.tsx
+
 import { Badge } from "@kit/ui/badge";
 import { Button } from "@kit/ui/button";
 import { Spinner } from "@kit/ui/spinner";
@@ -6,10 +8,17 @@ import { ChatMessage, QueryResult } from "../types";
 
 interface ChatMessageProps {
   message: ChatMessage;
-  onExecuteSQL: (sql: string) => Promise<void>;
+  previousMessage?: ChatMessage;
+  onExecuteSQL?: (sql: string) => Promise<void>; // Make it optional
 }
 
-export const ChatMessageComponent: React.FC<ChatMessageProps> = ({ message, onExecuteSQL }) => {
+export const ChatMessageComponent: React.FC<ChatMessageProps> = ({ 
+  message, 
+  previousMessage,
+  onExecuteSQL = () => Promise.resolve() // Default empty function
+}) => {
+  const shouldGroup = previousMessage?.role === message.role;
+  
   const bgColorClass = message.role === "user" 
     ? "bg-primary/10" 
     : message.role === "assistant" 
@@ -22,15 +31,15 @@ export const ChatMessageComponent: React.FC<ChatMessageProps> = ({ message, onEx
   };
   
   return (
-    <div className={`p-4 rounded-lg mb-4 ${bgColorClass}`}>
-      {message.role === "user" && (
+    <div className={`p-4 rounded-lg mb-4 ${bgColorClass} ${shouldGroup ? 'mt-1' : 'mt-4'}`}>
+      {!shouldGroup && message.role === "user" && (
         <div className="flex items-start">
           <Badge variant="outline" className="mr-2 mt-1">You</Badge>
           <p>{message.content}</p>
         </div>
       )}
       
-      {message.role === "assistant" && (
+      {!shouldGroup && message.role === "assistant" && (
         <div className="flex flex-col space-y-2">
           <div className="flex items-start">
             <Badge variant="outline" className="mr-2 mt-1">Assistant</Badge>
@@ -38,6 +47,34 @@ export const ChatMessageComponent: React.FC<ChatMessageProps> = ({ message, onEx
           </div>
           
           {message.sql && (
+            <div className="mt-2 p-3 bg-muted/80 dark:bg-gray-800 text-foreground dark:text-gray-100 rounded font-mono text-sm overflow-x-auto border border-border">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs text-muted-foreground dark:text-gray-400">SQL Query</span>
+                <Button 
+                  size="sm" 
+                  variant="ghost"
+                  onClick={() => copyToClipboard(message.sql || "")}
+                >
+                  <Copy className="h-3 w-3 mr-1" /> Copy
+                </Button>
+              </div>
+              <pre>{message.sql}</pre>
+              {message.executing && (
+                <div className="mt-2 flex items-center text-muted-foreground dark:text-gray-400">
+                  <Spinner className="mr-2 h-4 w-4" />
+                  <span>Executing query...</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      
+      {shouldGroup && (
+        <div className="pl-8">
+          <p>{message.content}</p>
+          
+          {message.role === "assistant" && message.sql && (
             <div className="mt-2 p-3 bg-gray-800 text-gray-100 rounded font-mono text-sm overflow-x-auto">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-xs text-gray-400">SQL Query</span>
@@ -50,17 +87,12 @@ export const ChatMessageComponent: React.FC<ChatMessageProps> = ({ message, onEx
                 </Button>
               </div>
               <pre>{message.sql}</pre>
-              <div className="mt-2">
-                <Button 
-                  size="sm" 
-                  onClick={() => onExecuteSQL(message.sql || "")}
-                  disabled={message.executing}
-                  className="mt-2"
-                >
-                  {message.executing ? <Spinner className="mr-2 h-4 w-4" /> : null}
-                  Execute Query
-                </Button>
-              </div>
+              {message.executing && (
+                <div className="mt-2 flex items-center text-gray-400">
+                  <Spinner className="mr-2 h-4 w-4" />
+                  <span>Executing query...</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -79,19 +111,19 @@ export const ChatMessageComponent: React.FC<ChatMessageProps> = ({ message, onEx
             <Info className="h-4 w-4 mr-2" /> Query Results:
           </div>
           {message.results.rows && message.results.rows.length > 0 ? (
-            <table className="min-w-full bg-white border border-gray-200 rounded overflow-hidden">
-              <thead className="bg-gray-100">
+            <table className="min-w-full bg-card border border-border rounded overflow-hidden">
+              <thead className="bg-muted">
                 <tr>
                   {message.results.columns.map((column: string, i: number) => (
-                    <th key={i} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th key={i} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       {column}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border">
                 {message.results.rows.map((row: any[], rowIndex: number) => (
-                  <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
                     {row.map((cell: any, cellIndex: number) => (
                       <td key={cellIndex} className="px-4 py-2 text-sm">
                         {typeof cell === 'object' ? JSON.stringify(cell) : String(cell)}
@@ -102,7 +134,7 @@ export const ChatMessageComponent: React.FC<ChatMessageProps> = ({ message, onEx
               </tbody>
             </table>
           ) : (
-            <p className="text-sm text-gray-500">No results found</p>
+            <p className="text-sm text-muted-foreground">No results found</p>
           )}
         </div>
       )}

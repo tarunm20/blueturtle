@@ -1,14 +1,12 @@
+// frontend/apps/web/app/home/chat.tsx
+
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@kit/ui/button";
 import { Textarea } from "@kit/ui/textarea";
 import { Spinner } from "@kit/ui/spinner";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@kit/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@kit/ui/tabs";
-import { Badge } from "@kit/ui/badge";
-import { AlertCircle, CheckCircle, MessageCircle, Zap, Info, Copy, ChevronDown, ChevronUp, Database } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@kit/ui/alert";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@kit/ui/accordion";
+import { Card, CardContent, CardHeader, CardTitle } from "@kit/ui/card";
+import { MessageCircle, Database, Menu, X } from "lucide-react";
 import axios, { AxiosError } from "axios";
 
 // Import types and components
@@ -32,6 +30,8 @@ import { ConfigSidebar } from "./_components/ConfigSidebar";
 import { DatabaseSchemaViewer } from "./_components/DatabaseSchemaViewer";
 import { ChatMessageComponent } from "./_components/ChatMessageComponent";
 import { ErrorHandling } from "./_components/ErrorHandling";
+import { ConversationsList } from "./_components/ConversationsList";
+import { useMediaQuery } from "../../lib/hooks/use-media-query";
 
 // Base URL for API calls
 const API_BASE_URL = "http://127.0.0.1:8000";
@@ -57,7 +57,6 @@ const ChatPage: React.FC = () => {
   
   // State for operations
   const [loading, setLoading] = useState<boolean>(false);
-  const [executing, setExecuting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [dbStatus, setDbStatus] = useState<ConnectionStatus>(null);
@@ -65,6 +64,16 @@ const ChatPage: React.FC = () => {
   const [dbSchema, setDbSchema] = useState<DBSchema | null>(null);
   const [fetchingSchema, setFetchingSchema] = useState<boolean>(false);
   const [isSchemaMinimized, setIsSchemaMinimized] = useState<boolean>(false);
+  
+  // New state for UI control
+  const [isConfigOpen, setIsConfigOpen] = useState<boolean>(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
+  const [conversations, setConversations] = useState<{id: string, title: string}[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [executingQuery, setExecutingQuery] = useState<boolean>(false);
+  
+  // Check if we're on desktop
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   
   // Reference for auto-scrolling messages
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -202,6 +211,28 @@ const ChatPage: React.FC = () => {
     }
   };
   
+  // Conversation handlers
+  const handleNewConversation = () => {
+    setActiveConversationId(null);
+    setMessages([]);
+    setUserPrompt("");
+    
+    // Close mobile sidebar if open
+    if (!isDesktop) {
+      setIsMobileSidebarOpen(false);
+    }
+  };
+  
+  const handleSelectConversation = (id: string) => {
+    setActiveConversationId(id);
+    // In a real implementation, load the conversation messages here
+    
+    // Close mobile sidebar if open
+    if (!isDesktop) {
+      setIsMobileSidebarOpen(false);
+    }
+  };
+  
   // Handle regeneration of queries
   const handleRegenerate = () => {
     // Get the last user message
@@ -212,7 +243,45 @@ const ChatPage: React.FC = () => {
     }
   };
 
-  // Chat handlers
+  // Execute SQL and return results
+  const executeSQL = async (sql: string): Promise<QueryResult | null> => {
+    if (!sql) return null;
+    
+    setExecutingQuery(true);
+    
+    try {
+      const requestData: ExecuteSqlRequest = {
+        sql: sql,
+        db_connection: createDbConnectionRequest()
+      };
+      
+      const res = await axios.post<QueryResult>(`${API_BASE_URL}/execute_sql`, requestData);
+      return res.data;
+    } catch (error) {
+      console.error("Error during SQL execution:", error);
+      let errorMessage = "Failed to execute SQL. Please check your database connection.";
+      
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError;
+        if (axiosError.response?.data && typeof axiosError.response.data === 'object' && 'detail' in axiosError.response.data) {
+          errorMessage = `SQL Execution Error: ${(axiosError.response.data as any).detail}`;
+        }
+      }
+      
+      // Add error message to chat
+      const errorMessage2: SystemMessage = { 
+        role: "system", 
+        content: errorMessage
+      };
+      setMessages(prev => [...prev, errorMessage2]);
+      
+      setError(errorMessage);
+      return null;
+    } finally {
+      setExecutingQuery(false);
+    }
+  };
+  // Chat handlers with automatic SQL execution
   const handleSubmit = async (): Promise<void> => {
     if (!userPrompt || dbStatus !== "success") {
       setError("Please enter a prompt and connect to a database");
@@ -231,7 +300,7 @@ const ChatPage: React.FC = () => {
       const dbConnectionRequest = createDbConnectionRequest();
       const llmConfig = createLLMConfig();
       
-      // Make API call
+      // Make API call to generate SQL
       const requestData: GenerateSqlRequest = {
         user_prompt: userPrompt,
         db_connection: dbConnectionRequest,
@@ -239,15 +308,36 @@ const ChatPage: React.FC = () => {
       };
       
       const res = await axios.post(`${API_BASE_URL}/generate_sql`, requestData);
+      const sql = res.data.sql;
       
-      // Add response to chat
+      // Add assistant message with SQL
       const assistantMessage: AssistantMessage = { 
         role: "assistant", 
-        content: "I've generated the following SQL query:", 
-        sql: res.data.sql,
-        executing: false
+        content: "Based on your question, I've generated and executed the following SQL query:", 
+        sql: sql,
+        executing: true
       };
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // Automatically execute the SQL
+      const results = await executeSQL(sql);
+      
+      // Update assistant message to show it's done executing
+      setMessages(prev => 
+        prev.map(msg => 
+          'sql' in msg && msg.sql === sql ? { ...msg, executing: false } : msg
+        )
+      );
+      
+      // Add results to chat if we have them
+      if (results) {
+        const resultsMessage: SystemMessage = { 
+          role: "system", 
+          content: "Here are the results:", 
+          results: results 
+        };
+        setMessages(prev => [...prev, resultsMessage]);
+      }
       
     } catch (error) {
       console.error("Error during request:", error);
@@ -274,91 +364,133 @@ const ChatPage: React.FC = () => {
     }
   };
 
-  const executeSQL = async (sql: string): Promise<void> => {
-    if (!sql) return;
-    
-    // Find the message with this SQL and set its executing state
-    setMessages(prev => 
-      prev.map(msg => 
-        'sql' in msg && msg.sql === sql ? { ...msg, executing: true } : msg
-      )
-    );
-    
-    setExecuting(true);
-    
-    try {
-      // Add execution message to chat
-      const executingMessage: SystemMessage = { 
-        role: "system", 
-        content: "Executing SQL query..." 
-      };
-      setMessages(prev => [...prev, executingMessage]);
-      
-      const requestData: ExecuteSqlRequest = {
-        sql: sql,
-        db_connection: createDbConnectionRequest()
-      };
-      
-      const res = await axios.post<QueryResult>(`${API_BASE_URL}/execute_sql`, requestData);
-      
-      // Update original message
-      setMessages(prev => 
-        prev.map(msg => 
-          'sql' in msg && msg.sql === sql ? { ...msg, executing: false } : msg
-        )
-      );
-      
-      // Add results to chat
-      const resultsMessage: SystemMessage = { 
-        role: "system", 
-        content: "Query executed successfully", 
-        results: res.data 
-      };
-      setMessages(prev => [...prev, resultsMessage]);
-      
-    } catch (error) {
-      console.error("Error during SQL execution:", error);
-      let errorMessage = "Failed to execute SQL. Please check your database connection.";
-      
-      if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError;
-        if (axiosError.response?.data && typeof axiosError.response.data === 'object' && 'detail' in axiosError.response.data) {
-          errorMessage = `SQL Execution Error: ${(axiosError.response.data as any).detail}`;
-        }
-      }
-      
-      setError(errorMessage);
-      
-      // Update original message
-      setMessages(prev => 
-        prev.map(msg => 
-          'sql' in msg && msg.sql === sql ? { ...msg, executing: false } : msg
-        )
-      );
-      
-      // Add error message to chat
-      const errorMessage2: SystemMessage = { 
-        role: "system", 
-        content: errorMessage
-      };
-      setMessages(prev => [...prev, errorMessage2]);
-    } finally {
-      setExecuting(false);
-    }
-  };
-
   return (
-    <div className="container mx-auto p-4 max-w-6xl">
-      <CardHeader className="px-0">
-        <CardTitle className="text-2xl mb-1">Chat with Your Database</CardTitle>
-        <CardDescription>
-          Connect to your database, select a model, and ask questions about your data in natural language
-        </CardDescription>
-      </CardHeader>
-
-        <div className="lg:grid lg:grid-cols-12 gap-6">
-          {/* Sidebar for configuration */}
-          <div className="lg:col-span-3">
+    <div className="container mx-auto p-0 max-w-none h-[calc(100vh-4rem)]">
+      <div className="flex h-full">
+        {/* Conversations sidebar - shown on desktop or when opened on mobile */}
+        {(isDesktop || isMobileSidebarOpen) && (
+          <div className={`${isDesktop ? 'w-80' : 'w-full absolute inset-0 z-50 bg-background'} border-r border-border h-full`}>
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="font-semibold">Conversations</h3>
+              {!isDesktop && (
+                <Button variant="ghost" size="sm" onClick={() => setIsMobileSidebarOpen(false)}>
+                  <X className="h-5 w-5" />
+                </Button>
+              )}
+            </div>
+            <ConversationsList 
+              conversations={conversations}
+              activeConversationId={activeConversationId}
+              onSelectConversation={handleSelectConversation}
+              onNewConversation={handleNewConversation}
+            />
+          </div>
+        )}
+        
+        {/* Main chat area */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+          {/* Chat header */}
+          <div className="flex items-center justify-between p-4 border-b">
+            {!isDesktop && (
+              <Button variant="ghost" size="sm" onClick={() => setIsMobileSidebarOpen(true)}>
+                <Menu className="h-5 w-5" />
+              </Button>
+            )}
+            <h2 className="font-semibold flex-1 text-center">
+              {activeConversationId ? "Conversation" : "New Chat"}
+            </h2>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setIsConfigOpen(!isConfigOpen)}
+            >
+              <Database className="h-4 w-4 mr-2" />
+              Configure
+            </Button>
+          </div>
+          
+          {/* Main content */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {dbStatus === "success" && dbSchema && (
+              <DatabaseSchemaViewer 
+                schema={dbSchema} 
+                isMinimized={isSchemaMinimized}
+                toggleMinimize={() => setIsSchemaMinimized(!isSchemaMinimized)}
+              />
+            )}
+            
+            <div className="space-y-2">
+              {messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-center text-muted-foreground">
+                  <MessageCircle className="h-12 w-12 mb-4 opacity-20" />
+                  <p className="text-lg font-medium">Start a conversation</p>
+                  <p className="text-sm max-w-md">
+                    Connect to your database and ask questions about your data
+                  </p>
+                </div>
+              ) : (
+                messages.map((message, index) => (
+                  <ChatMessageComponent 
+                    key={index} 
+                    message={message} 
+                    previousMessage={index > 0 ? messages[index-1] : undefined}
+                  />
+                ))
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+            
+            {error && (
+              <ErrorHandling 
+                error={error} 
+                onRegenerate={handleRegenerate}
+                showRegenerate={messages.length > 0 && messages[messages.length - 2]?.role === "user"}
+              />
+            )}
+          </div>
+          
+          {/* Input area */}
+          <div className="border-t p-4">
+            <div className="flex space-x-2">
+              <Textarea
+                value={userPrompt}
+                onChange={(e) => setUserPrompt(e.target.value)}
+                placeholder={dbStatus === "success" 
+                  ? "Ask a question about your data..." 
+                  : "Connect to your database first..."}
+                className="flex-grow resize-none"
+                disabled={dbStatus !== "success"}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit();
+                  }
+                }}
+              />
+              <Button 
+                onClick={handleSubmit}
+                disabled={loading || dbStatus !== "success"}
+                className="self-end"
+              >
+                {loading || executingQuery ? (
+                  <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="flex flex-col items-center space-y-4">
+                      <Spinner className="h-10 w-10" />
+                      <p className="text-sm font-medium">
+                        {loading ? "Generating SQL..." : "Executing query..."}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+                Send
+              </Button>
+            </div>
+          </div>
+        </div>
+        
+        {/* Config sidebar - shown when opened */}
+        {isConfigOpen && (
+          <div className={`${isDesktop ? 'w-80' : 'w-full absolute inset-0 z-50 bg-background'} border-l border-border h-full`}>
             <ConfigSidebar 
               dbType={dbType}
               setDbType={setDbType}
@@ -385,97 +517,11 @@ const ChatPage: React.FC = () => {
               testDbConnection={testDbConnection}
               testModelConnection={testModelConnection}
               fetchingSchema={fetchingSchema}
+              onClose={() => setIsConfigOpen(false)}
             />
           </div>
-          
-          {/* Main content area */}
-          <div className="lg:col-span-9 lg:flex lg:flex-col lg:gap-6">
-            {/* Database Schema Viewer - Only shown when connected */}
-            {dbStatus === "success" && dbSchema && (
-              <DatabaseSchemaViewer 
-                schema={dbSchema} 
-                isMinimized={isSchemaMinimized}
-                toggleMinimize={() => setIsSchemaMinimized(!isSchemaMinimized)}
-              />
-            )}
-            
-            {/* Chat area - now in a fixed layout */}
-            <div className="lg:flex-grow lg:flex lg:flex-col lg:h-[600px]">
-              <Card className="h-full flex flex-col">
-                <CardHeader className="flex-shrink-0">
-                  <CardTitle className="text-lg flex items-center">
-                    <MessageCircle className="h-5 w-5 mr-2" />
-                    Chat
-                  </CardTitle>
-                  <CardDescription>
-                    Ask questions about your data in natural language
-                  </CardDescription>
-                </CardHeader>
-                
-                <CardContent className="flex-grow overflow-auto mb-4">
-                  {/* Messages display area */}
-                  <div className="space-y-4 h-[350px] overflow-y-auto p-1">
-                    {messages.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-                        <Database className="h-12 w-12 mb-4 opacity-20" />
-                        <p className="text-lg font-medium">Connect to your database to get started</p>
-                        <p className="text-sm max-w-md">
-                          Then ask questions like: "Show me the top 5 customers by order quantity" or 
-                          "What products were sold last month?"
-                        </p>
-                      </div>
-                    ) : (
-                      messages.map((message, index) => (
-                        <ChatMessageComponent 
-                          key={index} 
-                          message={message} 
-                          onExecuteSQL={executeSQL} 
-                        />
-                      ))
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-                  
-                  {error && (
-                    <ErrorHandling 
-                      error={error} 
-                      onRegenerate={handleRegenerate}
-                      showRegenerate={messages.length > 0 && messages[messages.length - 2]?.role === "user"}
-                    />
-                  )}
-                </CardContent>
-                
-                <CardFooter className="border-t p-4 flex-shrink-0">
-                  <div className="flex w-full space-x-2">
-                    <Textarea
-                      value={userPrompt}
-                      onChange={(e) => setUserPrompt(e.target.value)}
-                      placeholder={dbStatus === "success" 
-                        ? "Ask a question about your data..." 
-                        : "Connect to your database first..."}
-                      className="flex-grow resize-none"
-                      disabled={dbStatus !== "success"}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSubmit();
-                        }
-                      }}
-                    />
-                    <Button 
-                      onClick={handleSubmit}
-                      disabled={loading || dbStatus !== "success"}
-                      className="self-end"
-                    >
-                      {loading ? <Spinner className="mr-2 h-4 w-4" /> : null}
-                      Send
-                    </Button>
-                  </div>
-                </CardFooter>
-              </Card>
-            </div>
-          </div>
-        </div>
+        )}
+      </div>
     </div>
   );
 };

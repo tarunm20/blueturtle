@@ -9,7 +9,6 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
   } from "@kit/ui/alert-dialog";
-  import { Button } from "@kit/ui/button";
   
   interface ConfirmDialogProps {
     isOpen: boolean;
@@ -19,7 +18,7 @@ import {
     description: string;
     confirmLabel?: string;
     cancelLabel?: string;
-    variant?: "default" | "destructive";
+    variant?: 'default' | 'destructive';
   }
   
   export function ConfirmDialog({
@@ -32,12 +31,8 @@ import {
     cancelLabel = "Cancel",
     variant = "default"
   }: ConfirmDialogProps) {
-    const handleConfirm = () => {
-      onConfirm();
-    };
-  
     return (
-      <AlertDialog open={isOpen} onOpenChange={onClose}>
+      <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -46,13 +41,15 @@ import {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
-            <AlertDialogAction
+            <AlertDialogCancel onClick={onClose}>
+              {cancelLabel}
+            </AlertDialogCancel>
+            <AlertDialogAction 
               onClick={(e) => {
                 e.preventDefault();
-                handleConfirm();
+                onConfirm();
               }}
-              className={variant === "destructive" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+              className={variant === 'destructive' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
             >
               {confirmLabel}
             </AlertDialogAction>

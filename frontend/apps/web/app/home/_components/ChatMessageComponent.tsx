@@ -39,46 +39,6 @@ export const ChatMessageComponent: React.FC<ChatMessageProps> = ({
     }
   };
   
-  // Function to prepare data for the chart
-  const prepareChartData = () => {
-    if (!message.results || !message.visualization) return null;
-    
-    const viz = message.visualization;
-    const columns = message.results.columns;
-    const rows = message.results.rows;
-    
-    // Find column indices
-    const xIndex = columns.indexOf(viz.xAxis || "");
-    const yIndex = columns.indexOf(viz.yAxis || "");
-    
-    // If we can't find the columns, try to find any text column and number column
-    const effectiveXIndex = xIndex !== -1 ? xIndex : 
-      columns.findIndex((_, i) => rows.length > 0 && rows[0] && typeof rows[0][i] === 'string');
-    
-    const effectiveYIndex = yIndex !== -1 ? yIndex : 
-      columns.findIndex((_, i) => rows.length > 0 && rows[0] && 
-        (typeof rows[0][i] === 'number' || !isNaN(parseFloat(rows[0][i]))));
-    
-    // If we still don't have valid indices, return null
-    if (effectiveXIndex === -1 || effectiveYIndex === -1) return null;
-    
-    // Extract data
-    const labels = rows.map(row => String(row[effectiveXIndex] || ''));
-    const data = rows.map(row => {
-      const val = row[effectiveYIndex];
-      return typeof val === 'number' ? val : 
-        typeof val === 'string' ? parseFloat(val) || 0 : 0;
-    });
-    
-    return {
-      labels,
-      data,
-      title: viz.title || `${columns[effectiveYIndex]} by ${columns[effectiveXIndex]}`
-    };
-  };
-  
-  // Get chart data
-  const chartData = message.visualization ? prepareChartData() : null;
   
   return (
     <div className={`p-4 rounded-lg mb-4 ${bgColorClass}`}>
@@ -139,37 +99,7 @@ export const ChatMessageComponent: React.FC<ChatMessageProps> = ({
               <Info className="h-4 w-4 mr-2 inline" /> 
               Query Results:
             </div>
-            
-            {/* Add visualization button if results exist and no visualization yet */}
-            {!message.visualization && onRequestVisualization && (
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={handleVisualizationRequest}
-                disabled={isRequestingViz}
-              >
-                {isRequestingViz ? (
-                  <><Spinner className="mr-2 h-3 w-3" /> Analyzing...</>
-                ) : (
-                  <><BarChart2 className="mr-2 h-3 w-3" /> Visualize</>
-                )}
-              </Button>
-            )}
-            
-            {/* Toggle visualization if available */}
-            {message.visualization && message.visualization.visualization && (
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={() => setShowVisualization(!showVisualization)}
-              >
-                {showVisualization ? (
-                  <><ChevronUp className="mr-2 h-3 w-3" /> Hide Chart</>
-                ) : (
-                  <><ChevronDown className="mr-2 h-3 w-3" /> Show Chart</>
-                )}
-              </Button>
-            )}
+        
           </div>
           
           {/* Display results table */}

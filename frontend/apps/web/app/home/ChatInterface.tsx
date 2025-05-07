@@ -7,7 +7,11 @@ import { Textarea } from '@kit/ui/textarea';
 import { Loader2 } from 'lucide-react';
 import { useChatSessions } from '../hooks/use-chat-sessions';
 import { DatabaseType, ModelType, ChatMessage } from './types';
-import { ChatMessageComponent } from './_components/ChatMessageComponent';
+import { QueryResultsTable } from './_components/QueryResultsTable';
+import { useQueryClient } from '@tanstack/react-query';
+
+// Maximum number of regeneration attempts
+const MAX_REGENERATION_ATTEMPTS = 3;
 
 interface ChatInterfaceProps {
   sessionId: string;
@@ -26,6 +30,13 @@ interface ChatInterfaceProps {
     apiKey?: string;
   };
 }
+
+interface RegenerationState {
+  originalPrompt: string;
+  currentAttempt: number;
+  userMessageId: string | null;
+  assistantMessageId: string | null;
+}
   
 export function ChatInterface({ 
   sessionId, 
@@ -39,58 +50,34 @@ export function ChatInterface({
   
   const { getMessages, addMessage, addQueryResults } = useChatSessions();
   const messagesQuery = getMessages(sessionId);
+  const queryClient = useQueryClient();
   
   const [input, setInput] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [executingQueries, setExecutingQueries] = useState<Record<string, boolean>>({});
+  
+  // Track current processing user message
+  const [processingUserMessage, setProcessingUserMessage] = useState<string | null>(null);
+  
+  // State for tracking regeneration attempts
+  const [regenerationState, setRegenerationState] = useState<RegenerationState | null>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [failedQueries, setFailedQueries] = useState<Record<string, boolean>>({});
+
   // Auto-scroll to bottom when messages update
   useEffect(() => {
     if (messagesEndRef?.current) {
       messagesEndRef.current.scrollIntoView?.({ behavior: 'smooth' });
     }
-  }, [messagesQuery.data]);
+  }, [messagesQuery.data, processingUserMessage]);
 
-  useEffect(() => {
-    const messages = messagesQuery.data || [];
-    // Look for assistant messages with SQL that haven't been executed or failed
-    const pendingQueries = messages.filter((msg: ChatMessage) => 
-      msg.role === 'assistant' && 
-      msg.sql && 
-      !executingQueries[msg.id || ''] && 
-      !failedQueries[msg.id || ''] &&
-      !messages.some((m: ChatMessage) => 
-        m.role === 'system' && 
-        (m.content.includes('Query returned') || m.content.includes('SQL execution error')) && 
-        m.sql === msg.sql
-      )
-    );
-  
-    // Execute pending queries
-    pendingQueries.forEach((message: ChatMessage) => {
-      if (message.id && message.sql) {
-        executeSQL(message.sql, message.id);
-      }
-    });
-  }, [messagesQuery.data, executingQueries, failedQueries]);
-
-  // Handle message submission
-  const handleSubmit = async () => {
-    const trimmedInput = input?.trim?.() || '';
-    if (!trimmedInput || isGenerating) return;
-    
-    setIsGenerating(true);
-    setInput(''); // Clear input right away for better UX
-    
+  // Function to handle SQL generation (initial or regeneration)
+  const generateSQL = async (
+    prompt: string, 
+    isRegeneration = false, 
+    attemptNumber = 1
+  ) => {
     try {
-      // Add user message to database
-      await addMessage.mutateAsync({
-        sessionId,
-        role: 'user',
-        content: trimmedInput
-      });
-      
       // Get recent message history from current data
       const recentMessages = messagesQuery.data?.slice?.(-5) || [];
       
@@ -99,11 +86,13 @@ export function ChatInterface({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_prompt: trimmedInput,
-          message_history: recentMessages.map((msg: { role: any; content: any; }) => ({
-            role: msg?.role || 'user',
-            content: msg?.content || ''
-          })),
+          user_prompt: prompt,
+          message_history: recentMessages
+            .filter(msg => msg.role === 'user') // Only include user messages for context
+            .map((msg: { role: any; content: any; }) => ({
+              role: msg?.role || 'user',
+              content: msg?.content || ''
+            })),
           db_connection: dbConfig,
           llm_config: llmConfig
         })
@@ -119,104 +108,102 @@ export function ChatInterface({
         throw new Error('Invalid response data');
       }
       
+      // Only display a user message for initial query (not regenerations)
+      let userMessageId = regenerationState?.userMessageId || null;
+      
+      if (!isRegeneration) {
+        const userMessage = await addMessage.mutateAsync({
+          sessionId,
+          role: 'user',
+          content: prompt
+        });
+        userMessageId = userMessage.id || null;
+        
+        // Clear the processing user message since it's now saved to the database
+        setProcessingUserMessage(null);
+      }
+      
       // Add assistant response to database
-      await addMessage.mutateAsync({
+      const assistantMessage = await addMessage.mutateAsync({
         sessionId,
         role: 'assistant',
         content: 'I\'m executing the following SQL query:',
         sql: data.sql
       });
       
-      // The SQL execution will happen automatically in the useEffect hook
+      // Update regeneration state
+      setRegenerationState({
+        originalPrompt: prompt,
+        currentAttempt: attemptNumber,
+        userMessageId,
+        assistantMessageId: assistantMessage.id || null
+      });
       
+      // Try to execute the SQL query
+      if (assistantMessage.id) {
+        await executeSQL(data.sql, assistantMessage.id);
+      }
+      
+      return true;
     } catch (error) {
       console.error('Error:', error);
       
-      // Add error message to database
-      await addMessage.mutateAsync({
-        sessionId,
-        role: 'system',
-        content: `Error: ${error instanceof Error ? error?.message || 'Unknown error' : 'Unknown error'}`
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  // Handle visualization request
-  const handleRequestVisualization = async (message: ChatMessage) => {
-    if (!message.results) return;
-    
-    try {
-      // Call the visualization recommendation API
-      const response = await fetch('http://localhost:8000/recommend_visualization', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: messagesQuery.data?.find(msg => msg.role === 'user')?.content || '',
-          columns: message.results.columns,
-          rows: message.results.rows,
-          llm_config: llmConfig
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-      
-      const visualization = await response.json();
-      
-      // Update the message with visualization recommendation
-      if (message.id) {
-        await addQueryResults.mutateAsync({
-          messageId: message.id,
-          columns: message.results.columns,
-          rows: message.results.rows,
-          visualization
-        });
-      }
-      
-      // If visualization is appropriate, add a system message with explanation
-      if (visualization.visualization) {
-        await addMessage.mutateAsync({
-          sessionId,
-          role: 'system',
-          content: `Based on this data, I recommend a ${visualization.chartType} chart with "${visualization.xAxis}" on the X-axis and "${visualization.yAxis}" on the Y-axis. ${visualization.explanation || ''}`
-        });
+      // If we're below the max attempts, try regenerating
+      if (attemptNumber < MAX_REGENERATION_ATTEMPTS) {
+        console.log(`Regenerating SQL (attempt ${attemptNumber + 1}/${MAX_REGENERATION_ATTEMPTS})`);
+        return generateSQL(prompt, true, attemptNumber + 1);
       } else {
+        console.log(`Max regeneration attempts (${MAX_REGENERATION_ATTEMPTS}) reached`);
+        
+        // After max attempts, add a generic response instead of an error message
         await addMessage.mutateAsync({
           sessionId,
-          role: 'system',
-          content: `This data doesn't seem suitable for visualization. ${visualization.explanation || ''}`
+          role: 'assistant',
+          content: "I couldn't find any relevant data for your query. Could you rephrase your question or provide more specific details about what you're looking for?"
         });
+        
+        // Clear the processing user message if it's still there
+        setProcessingUserMessage(null);
+        
+        return false;
       }
-    } catch (error) {
-      console.error('Error getting visualization recommendation:', error);
-      
-      // Add error message
-      await addMessage.mutateAsync({
-        sessionId,
-        role: 'system',
-        content: `Could not generate visualization: ${error instanceof Error ? error.message : 'Unknown error'}`
-      });
     }
   };
   
-  const executeSQL = async (sql: string, messageId: string): Promise<void> => {
+  // Handle message submission
+  const handleSubmit = async () => {
+    const trimmedInput = input?.trim?.() || '';
+    if (!trimmedInput || isGenerating) return;
+    
+    setIsGenerating(true);
+    setInput(''); // Clear input right away for better UX
+    
+    // Immediately show the user message in the UI
+    setProcessingUserMessage(trimmedInput);
+    
+    // Reset regeneration state for new queries
+    setRegenerationState(null);
+    
+    try {
+      await generateSQL(trimmedInput);
+    } finally {
+      setIsGenerating(false);
+      
+      // In case of an error that bypasses our handling, clear the processing message
+      if (processingUserMessage === trimmedInput) {
+        setProcessingUserMessage(null);
+      }
+    }
+  };
+  
+  const executeSQL = async (sql: string, messageId: string) => {
     if (!sql || !messageId || executingQueries[messageId]) return;
     
     // Mark this query as executing
     setExecutingQueries(prev => ({ ...prev, [messageId]: true }));
     
     try {
-      // Add executing message
-      await addMessage.mutateAsync({
-        sessionId,
-        role: 'system',
-        content: 'Executing SQL query...'
-      });
-      
-      // Execute the SQL
+      // Execute the SQL (don't add a "Executing..." message to keep the chat clean)
       const response = await fetch('http://localhost:8000/execute_sql', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -226,85 +213,45 @@ export function ChatInterface({
         })
       });
       
-      if (!response.ok) {
-        // Mark this query as failed to prevent infinite retry
-        setFailedQueries(prev => ({ ...prev, [messageId]: true }));
-        
-        // Parse error response
-        const errorData = await response.json();
-        const errorMessage = errorData.detail?.error || 'SQL syntax error';
-        
-        console.log('SQL execution failed:', errorMessage);
-        
-        // Find the last user message for context
-        const lastUserMessage = messagesQuery.data?.findLast(msg => msg.role === 'user');
-        
-        if (lastUserMessage) {
-          // Get recent message history for context
-          const recentMessages = messagesQuery.data?.slice(-5) || [];
+      // Check for 422 error (SQL syntax error)
+      if (response.status === 422) {
+        // Handle SQL syntax error by regenerating
+        if (regenerationState && regenerationState.currentAttempt < MAX_REGENERATION_ATTEMPTS) {
+          // Invalidate query to refresh messages (effectively removing the failed attempt visually)
+          queryClient.invalidateQueries({ queryKey: ['chat-messages', sessionId] });
           
-          try {
-            // Replace the execution message with a more user-friendly one
-            await addMessage.mutateAsync({
-              sessionId,
-              role: 'system',
-              content: 'Let me try a different approach...'
-            });
-            
-            // Call regenerate_sql endpoint
-            const regenerateResponse = await fetch('http://localhost:8000/regenerate_sql', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                user_prompt: lastUserMessage.content,
-                message_history: recentMessages.map(msg => ({
-                  role: msg.role,
-                  content: msg.content
-                })),
-                db_connection: dbConfig,
-                llm_config: llmConfig,
-                failed_sql: sql,
-                error_message: errorMessage
-              })
-            });
-            
-            if (!regenerateResponse.ok) {
-              throw new Error(`Failed to regenerate SQL: ${regenerateResponse.statusText}`);
-            }
-            
-            const regenerateData = await regenerateResponse.json();
-            
-            // Add a new message with the corrected SQL
-            await addMessage.mutateAsync({
-              sessionId,
-              role: 'assistant',
-              content: 'I\'ve generated this SQL query:',
-              sql: regenerateData.sql
-            });
-            
-            // We don't need to manually execute the new SQL - it will be picked up by the useEffect hook
-            return;
-          } catch (regenerateError) {
-            console.error('Error during SQL regeneration:', regenerateError);
-            // If regeneration fails, we'll show a generic message
-            await addMessage.mutateAsync({
-              sessionId,
-              role: 'system',
-              content: 'I couldn\'t process that question properly. Let\'s try a different approach.'
-            });
-          }
+          // Increment attempt count and try again
+          const nextAttempt = regenerationState.currentAttempt + 1;
+          console.log(`SQL error detected. Regenerating (attempt ${nextAttempt}/${MAX_REGENERATION_ATTEMPTS})`);
+          
+          // Allow some time for visual changes
+          setTimeout(() => {
+            generateSQL(regenerationState.originalPrompt, true, nextAttempt);
+          }, 300);
+          
+          return;
+        } else {
+          // Max attempts reached, add a generic response instead of an error
+          await addMessage.mutateAsync({
+            sessionId,
+            role: 'assistant',
+            content: "I couldn't find any relevant data for your query. Could you rephrase your question or provide more specific details about what you're looking for?"
+          });
+          return;
         }
-        
-        return;
       }
       
-      const data = await response.json();
+      if (!response?.ok) {
+        throw new Error(`SQL execution error: ${response?.status || 'Unknown'}`);
+      }
+      
+      const data = await response.json?.();
       
       if (!data || !Array.isArray(data?.columns) || !Array.isArray(data?.rows)) {
         throw new Error('Invalid results data');
       }
       
-      // Add results message
+      // Add success message with results
       const resultsMsg = await addMessage.mutateAsync({
         sessionId,
         role: 'system',
@@ -324,22 +271,34 @@ export function ChatInterface({
     } catch (error) {
       console.error('Error executing SQL:', error);
       
-      // Mark this query as failed to prevent infinite retry
-      setFailedQueries(prev => ({ ...prev, [messageId]: true }));
-      
-      // Add error message
-      await addMessage.mutateAsync({
-        sessionId,
-        role: 'system',
-        content: 'I encountered an issue executing that query. Let me know if you\'d like to try a different question.'
-      });
-      
+      // If we're within regeneration attempts, try again with a different query
+      if (regenerationState && regenerationState.currentAttempt < MAX_REGENERATION_ATTEMPTS) {
+        // Invalidate query to refresh messages
+        queryClient.invalidateQueries({ queryKey: ['chat-messages', sessionId] });
+        
+        // Increment attempt count and try again
+        const nextAttempt = regenerationState.currentAttempt + 1;
+        console.log(`SQL execution failed. Regenerating (attempt ${nextAttempt}/${MAX_REGENERATION_ATTEMPTS})`);
+        
+        // Allow some time for visual changes
+        setTimeout(() => {
+          generateSQL(regenerationState.originalPrompt, true, nextAttempt);
+        }, 300);
+      } else {
+        // Max attempts reached, add a generic response
+        await addMessage.mutateAsync({
+          sessionId,
+          role: 'assistant',
+          content: "I couldn't find any relevant data for your query. Could you rephrase your question or provide more specific details about what you're looking for?"
+        });
+      }
     } finally {
       // Mark this query as no longer executing
       setExecutingQueries(prev => ({ ...prev, [messageId]: false }));
     }
   };
-  // Format to display the chat messages
+
+  // Format to display the chat messages - only show messages we want users to see
   const renderMessages = () => {
     if (messagesQuery.isLoading) {
       return (
@@ -357,7 +316,90 @@ export function ChatInterface({
       );
     }
     
-    if (!messagesQuery.data?.length) {
+    // Filter messages to only show successful ones or user messages
+    // This hides error messages and failed attempts
+    const filteredMessages = messagesQuery.data?.filter(message => {
+      // Always show user messages
+      if (message.role === 'user') return true;
+      
+      // For assistant and system messages, don't show ones with errors
+      return !message.content.includes('Error') && 
+            !message.content.includes('Executing SQL query...') &&
+            !message.content.includes('Regenerating query');
+    }) || [];
+    
+    // Build the rendered messages
+    const renderedMessages = filteredMessages.map((message, index) => {
+      const messageId = message.id || index.toString();
+      
+      return (
+        <div 
+          key={messageId}
+          className={`p-3 rounded-lg ${
+            message.role === 'user' 
+              ? 'bg-primary/10 ml-10' 
+              : message.role === 'assistant' 
+                ? 'bg-secondary/10 mr-10' 
+                : 'bg-muted'
+          }`}
+        >
+          <div className="font-medium mb-1">
+            {message.role === 'user' ? 'You' : message.role === 'assistant' ? 'Assistant' : 'System'}
+          </div>
+          <div>{message.content || ''}</div>
+          
+          {message.sql && (
+            <div className="mt-2 p-2 bg-muted rounded font-mono text-sm overflow-auto">
+              <div className="text-xs text-muted-foreground mb-1">SQL Query:</div>
+              <div>{message.sql}</div>
+              {executingQueries[messageId] && (
+                <div className="mt-2 flex items-center text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" /> 
+                  Executing query...
+                </div>
+              )}
+            </div>
+          )}
+          
+          {message.results && (
+            <div className="mt-2">
+              <QueryResultsTable 
+                columns={message.results.columns} 
+                rows={message.results.rows} 
+              />
+            </div>
+          )}
+        </div>
+      );
+    });
+    
+    // If there's a processing user message, add it to the list
+    if (processingUserMessage) {
+      renderedMessages.push(
+        <div 
+          key="processing-user-message"
+          className="p-3 rounded-lg bg-primary/10 ml-10"
+        >
+          <div className="font-medium mb-1">You</div>
+          <div>{processingUserMessage}</div>
+        </div>
+      );
+      
+      // Also add a loading message
+      renderedMessages.push(
+        <div 
+          key="loading-message"
+          className="p-3 rounded-lg bg-secondary/10 mr-10"
+        >
+          <div className="flex items-center space-x-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-muted-foreground">Generating response...</span>
+          </div>
+        </div>
+      );
+    }
+    
+    if (renderedMessages.length === 0) {
       return (
         <div className="flex items-center justify-center h-full text-muted-foreground">
           Start a new conversation
@@ -365,18 +407,7 @@ export function ChatInterface({
       );
     }
     
-    return messagesQuery.data.map((message, index) => {
-      const messageId = message.id || index.toString();
-      
-    return (
-      <ChatMessageComponent 
-        key={messageId}
-        message={message}
-        onExecuteSQL={(sql: string) => executeSQL(sql, messageId)}
-        onRequestVisualization={handleRequestVisualization}
-      />
-    );
-    });
+    return renderedMessages;
   };
 
   return (

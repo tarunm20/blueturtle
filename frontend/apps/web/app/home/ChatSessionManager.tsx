@@ -6,7 +6,6 @@ import { PlusCircle, Trash2 } from 'lucide-react';
 import { useSupabase } from '@kit/supabase/hooks/use-supabase';
 import { ChatInterface } from './ChatInterface';
 import { DatabaseType, ModelType } from './types';
-import { ConfirmDialog } from './_components/ConfirmDialog';
 
 interface ChatSession {
   id: string;
@@ -36,46 +35,43 @@ export function ChatSessionManager({ dbConfig, llmConfig }: ChatSessionManagerPr
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  
-  // State for delete confirmation dialog
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
-  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   // Load chat sessions from Supabase
-  useEffect(() => {
-    async function loadSessions() {
-      setIsLoading(true);
-      try {
-        const { data: sessions, error } = await supabase
-          .from('chat_sessions')
-          .select('*')
-          .order('updated_at', { ascending: false });
-          
-        if (error) {
-          console.error('Error fetching sessions:', error);
-          return;
-        }
+  const loadSessions = async () => {
+    setIsLoading(true);
+    try {
+      const { data: sessions, error } = await supabase
+        .from('chat_sessions')
+        .select('*')
+        .order('updated_at', { ascending: false });
         
-        setSessions(
-          (sessions || []).map(session => ({
-            ...session,
-            created_at: session.created_at || '',
-          }))
-        );
-        
-        // Set active session to the first one if we have sessions
-        if (sessions?.length > 0) {
-          setActiveSessionId(sessions[0]?.id || '');
-        }
-      } catch (err) {
-        console.error('Error in loadSessions:', err);
-      } finally {
-        setIsLoading(false);
+      if (error) {
+        console.error('Error fetching sessions:', error);
+        return;
       }
+      
+      setSessions(
+        (sessions || []).map(session => ({
+          ...session,
+          created_at: session.created_at || '',
+        }))
+      );
+      
+      // Set active session to the first one if we have sessions
+      if (sessions?.length > 0 && !activeSessionId) {
+        setActiveSessionId(sessions[0]?.id || '');
+      }
+    } catch (err) {
+      console.error('Error in loadSessions:', err);
+    } finally {
+      setIsLoading(false);
     }
-    
+  };
+
+  useEffect(() => {
     loadSessions();
-  }, [supabase]);
+  }, []);
 
   // Create a new chat session
   const createSession = async () => {
@@ -118,92 +114,103 @@ export function ChatSessionManager({ dbConfig, llmConfig }: ChatSessionManagerPr
     }
   };
 
-  // Handle opening delete confirmation dialog
-  const openDeleteConfirmation = (sessionId: string) => {
-    setSessionToDelete(sessionId);
-    setDeleteDialogOpen(true);
-  };
-
-  // Perform deletion with optimistic UI update
-  const confirmDelete = async () => {
-    if (!sessionToDelete) return;
+  // Delete session implementation
+  const handleDeleteSession = async (id: string) => {
+    if (isDeleting) return; // Prevent multiple clicks
+    
+    console.log('Delete requested for session:', id);
+    setIsDeleting(true);
     
     try {
-      // Immediately update the UI (optimistic update)
-      const updatedSessions = sessions?.filter(session => session?.id !== sessionToDelete) || [];
+      // Optimistic UI update
+      const updatedSessions = sessions.filter(s => s.id !== id);
       setSessions(updatedSessions);
       
-      // Handle the case when active session is being deleted
-      if (sessionToDelete === activeSessionId) {
-        if (updatedSessions.length > 0) {
-          setActiveSessionId(updatedSessions[0]?.id || '');
+      // Update active session if needed
+      if (id === activeSessionId) {
+        if (updatedSessions.length > 0 && updatedSessions[0]?.id) {
+          setActiveSessionId(updatedSessions[0].id);
         } else {
           setActiveSessionId('');
-          // We'll create a new session after the deletion is complete
         }
       }
       
-      // Close dialog immediately to improve perceived performance
-      setDeleteDialogOpen(false);
-      
-      // Process backend deletion in the background
-      const deleteBackend = async () => {
-        try {
-          // Delete query results first
-          const { data: messages } = await supabase
-            .from('chat_messages')
-            .select('id')
-            .eq('session_id', sessionToDelete);
-            
-          if (messages && messages.length > 0) {
-            const messageIds = messages.map(m => m.id);
-            
-            // Delete query results for these messages
-            for (const messageId of messageIds) {
-              await supabase
-                .from('query_results')
-                .delete()
-                .eq('message_id', messageId);
+      // Execute database operations
+      try {
+        // 1. First get messages associated with this session
+        console.log('Fetching messages for session:', id);
+        const { data: messages, error: messagesError } = await supabase
+          .from('chat_messages')
+          .select('id')
+          .eq('session_id', id);
+          
+        if (messagesError) {
+          console.error('Error fetching messages:', messagesError);
+          throw messagesError;
+        }
+        
+        console.log(`Found ${messages?.length || 0} messages`);
+        
+        // 2. Delete query results for these messages
+        if (messages && messages.length > 0) {
+          const messageIds = messages.map(m => m.id);
+          
+          for (const messageId of messageIds) {
+            console.log(`Deleting query results for message: ${messageId}`);
+            const { error: resultsError } = await supabase
+              .from('query_results')
+              .delete()
+              .eq('message_id', messageId);
+              
+            if (resultsError) {
+              console.error(`Error deleting results for message ${messageId}:`, resultsError);
+              // Continue with other messages even if one fails
             }
           }
           
-          // Delete all messages
-          await supabase
+          // 3. Delete all messages for this session
+          console.log('Deleting all messages for session:', id);
+          const { error: messagesDeleteError } = await supabase
             .from('chat_messages')
             .delete()
-            .eq('session_id', sessionToDelete);
-          
-          // Finally delete the session
-          await supabase
-            .from('chat_sessions')
-            .delete()
-            .eq('id', sessionToDelete);
-          
-        } catch (err) {
-          console.error('Error in background deletion:', err);
-          // Note: We don't undo the UI updates even if deletion fails
-          // as that would be confusing for the user
+            .eq('session_id', id);
+            
+          if (messagesDeleteError) {
+            console.error('Error deleting messages:', messagesDeleteError);
+            throw messagesDeleteError;
+          }
         }
-      };
-      
-      // Start background deletion
-      deleteBackend();
-      
-      // Create a new session if needed (we deleted the last one)
-      if (updatedSessions.length === 0) {
-        createSession();
+        
+        // 4. Finally delete the session
+        console.log('Deleting session:', id);
+        const { error: sessionDeleteError } = await supabase
+          .from('chat_sessions')
+          .delete()
+          .eq('id', id);
+          
+        if (sessionDeleteError) {
+          console.error('Error deleting session:', sessionDeleteError);
+          throw sessionDeleteError;
+        }
+        
+        console.log('Session deletion complete');
+        
+        // Create a new session if we deleted the last one
+        if (updatedSessions.length === 0) {
+          await createSession();
+        }
+        
+      } catch (dbError) {
+        console.error('Database error during deletion:', dbError);
+        // Refresh sessions to ensure UI is consistent with database
+        await loadSessions();
       }
       
+    } catch (err) {
+      console.error('Error in handleDeleteSession:', err);
     } finally {
-      // Clear session to delete
-      setSessionToDelete(null);
+      setIsDeleting(false);
     }
-  };
-
-  // Cancel delete operation
-  const cancelDelete = () => {
-    setDeleteDialogOpen(false);
-    setSessionToDelete(null);
   };
 
   // Create a session if none exist
@@ -246,11 +253,12 @@ export function ChatSessionManager({ dbConfig, llmConfig }: ChatSessionManagerPr
                   variant="ghost" 
                   size="sm"
                   onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
-                    openDeleteConfirmation(session?.id || '');
+                    handleDeleteSession(session?.id || '');
                   }}
                   className="opacity-0 group-hover:opacity-100 transition-opacity"
-                  disabled={sessions?.length <= 1}
+                  disabled={sessions?.length <= 1 || isDeleting}
                 >
                   <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
                 </Button>
@@ -274,18 +282,6 @@ export function ChatSessionManager({ dbConfig, llmConfig }: ChatSessionManagerPr
           </div>
         )}
       </div>
-
-      {/* Delete Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={deleteDialogOpen}
-        onClose={cancelDelete}
-        onConfirm={confirmDelete}
-        title="Delete Chat"
-        description="Are you sure you want to delete this chat? This will permanently remove the chat and all of its messages. This action cannot be undone."
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
-        variant="destructive"
-      />
     </div>
   );
 }

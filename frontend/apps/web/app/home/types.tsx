@@ -1,30 +1,25 @@
-// frontend/apps/web/app/home/types.ts
+// Updated type definitions in frontend/apps/web/app/home/types.tsx
 export type DatabaseType = "postgres" | "mysql" | "mssql" | "sqlite";
 export type ModelType = "ollama" | "openai" | "custom";
 export type ConnectionStatus = "success" | "error" | "loading" | null;
-export type ChartType = "bar" | "line" | "pie" | "table";
 
 // Schema representation
 export interface DBSchema {
   [tableName: string]: string[];
 }
 
-// Visualization recommendation
-export interface VisualizationRecommendation {
-  visualization: boolean;
-  chartType?: ChartType;
-  xAxis?: string;
-  yAxis?: string;
-  title?: string;
-  explanation?: string;
+// Query metadata for tracking regeneration attempts
+export interface QueryMetadata {
+  queryGroupId?: string;
+  attemptNumber?: number;
 }
-
 
 // Message types
 export interface BaseMessage {
   id?: string;
   role: "user" | "assistant" | "system";
   content: string;
+  metadata?: QueryMetadata;
 }
 
 export interface UserMessage extends BaseMessage {
@@ -40,7 +35,6 @@ export interface AssistantMessage extends BaseMessage {
 export interface SystemMessage extends BaseMessage {
   role: "system";
   results?: QueryResult;
-  visualization?: VisualizationRecommendation;
 }
 
 export interface ChatMessage {
@@ -48,11 +42,11 @@ export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
   sql?: string;
+  metadata?: QueryMetadata;
   results?: {
     columns: string[];
     rows: any[][];
   };
-  visualization?: VisualizationRecommendation;
   executing?: boolean;
 }
 
@@ -102,4 +96,3 @@ export interface ExecuteSqlRequest {
   sql: string;
   db_connection: DbConnectionRequest;
 }
-

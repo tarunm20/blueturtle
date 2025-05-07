@@ -75,6 +75,7 @@ export type Database = {
           content: string
           created_at: string | null
           id: string
+          metadata: Json | null
           role: string
           session_id: string
           sql: string | null
@@ -83,6 +84,7 @@ export type Database = {
           content: string
           created_at?: string | null
           id?: string
+          metadata?: Json | null
           role: string
           session_id: string
           sql?: string | null
@@ -91,6 +93,7 @@ export type Database = {
           content?: string
           created_at?: string | null
           id?: string
+          metadata?: Json | null
           role?: string
           session_id?: string
           sql?: string | null

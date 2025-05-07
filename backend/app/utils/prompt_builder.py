@@ -90,3 +90,40 @@ def build_visualization_prompt(user_question: str, columns: list, rows: list) ->
       "explanation": "Brief explanation of why this visualization makes sense"
     }}
     """
+
+def build_llm_prompt_for_regeneration(user_prompt: str, schema: str, message_history, failed_sql: str, error_message: str) -> str:
+    """Build a prompt for regenerating SQL after a failed attempt"""
+    history_text = ""
+    
+    if message_history and len(message_history) > 0:
+        history_text = "Previous conversation:\n"
+        for msg in message_history:
+            role = "User" if msg.role == "user" else "Assistant"
+            history_text += f"{role}: {msg.content}\n"
+        
+        history_text += "\n"
+    
+    return f"""
+    You are an expert SQL assistant.
+    Given the following database schema, chat history, user request, and information about a failed SQL query attempt, 
+    generate a corrected SQL query that fulfills the user's request.
+    
+    Schema:
+    {schema}
+    
+    {history_text}
+    User's request:
+    {user_prompt}
+    
+    Previous SQL query that failed:
+    ```sql
+    {failed_sql}
+    ```
+    
+    Error message:
+    {error_message}
+    
+    Generate a corrected SQL query that will run successfully. Consider the error message and fix the issues in the query.
+    Output only the SQL query as a JSON object with a "query" field. Do not include explanations or comments.
+    Example: {{"query": "SELECT * FROM users WHERE id = 1"}}
+    """

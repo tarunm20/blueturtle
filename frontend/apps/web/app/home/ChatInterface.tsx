@@ -44,7 +44,7 @@ export function ChatInterface({
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [executingQueries, setExecutingQueries] = useState<Record<string, boolean>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
+  const [failedQueries, setFailedQueries] = useState<Record<string, boolean>>({});
   // Auto-scroll to bottom when messages update
   useEffect(() => {
     if (messagesEndRef?.current) {
@@ -52,28 +52,28 @@ export function ChatInterface({
     }
   }, [messagesQuery.data]);
 
-  // Auto-execute SQL queries when they appear in message data
   useEffect(() => {
     const messages = messagesQuery.data || [];
-    // Look for assistant messages with SQL that haven't been executed
+    // Look for assistant messages with SQL that haven't been executed or failed
     const pendingQueries = messages.filter((msg: ChatMessage) => 
       msg.role === 'assistant' && 
       msg.sql && 
       !executingQueries[msg.id || ''] && 
+      !failedQueries[msg.id || ''] &&
       !messages.some((m: ChatMessage) => 
         m.role === 'system' && 
-        m.content.includes('Query returned') && 
+        (m.content.includes('Query returned') || m.content.includes('SQL execution error')) && 
         m.sql === msg.sql
       )
     );
-
+  
     // Execute pending queries
     pendingQueries.forEach((message: ChatMessage) => {
       if (message.id && message.sql) {
         executeSQL(message.sql, message.id);
       }
     });
-  }, [messagesQuery.data]);
+  }, [messagesQuery.data, executingQueries, failedQueries]);
 
   // Handle message submission
   const handleSubmit = async () => {
@@ -226,11 +226,79 @@ export function ChatInterface({
         })
       });
       
-      if (!response?.ok) {
-        throw new Error(`SQL execution error: ${response?.status || 'Unknown'}`);
+      if (!response.ok) {
+        // Mark this query as failed to prevent infinite retry
+        setFailedQueries(prev => ({ ...prev, [messageId]: true }));
+        
+        // Parse error response
+        const errorData = await response.json();
+        const errorMessage = errorData.detail?.error || 'SQL syntax error';
+        
+        console.log('SQL execution failed:', errorMessage);
+        
+        // Find the last user message for context
+        const lastUserMessage = messagesQuery.data?.findLast(msg => msg.role === 'user');
+        
+        if (lastUserMessage) {
+          // Get recent message history for context
+          const recentMessages = messagesQuery.data?.slice(-5) || [];
+          
+          try {
+            // Replace the execution message with a more user-friendly one
+            await addMessage.mutateAsync({
+              sessionId,
+              role: 'system',
+              content: 'Let me try a different approach...'
+            });
+            
+            // Call regenerate_sql endpoint
+            const regenerateResponse = await fetch('http://localhost:8000/regenerate_sql', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                user_prompt: lastUserMessage.content,
+                message_history: recentMessages.map(msg => ({
+                  role: msg.role,
+                  content: msg.content
+                })),
+                db_connection: dbConfig,
+                llm_config: llmConfig,
+                failed_sql: sql,
+                error_message: errorMessage
+              })
+            });
+            
+            if (!regenerateResponse.ok) {
+              throw new Error(`Failed to regenerate SQL: ${regenerateResponse.statusText}`);
+            }
+            
+            const regenerateData = await regenerateResponse.json();
+            
+            // Add a new message with the corrected SQL
+            await addMessage.mutateAsync({
+              sessionId,
+              role: 'assistant',
+              content: 'I\'ve generated this SQL query:',
+              sql: regenerateData.sql
+            });
+            
+            // We don't need to manually execute the new SQL - it will be picked up by the useEffect hook
+            return;
+          } catch (regenerateError) {
+            console.error('Error during SQL regeneration:', regenerateError);
+            // If regeneration fails, we'll show a generic message
+            await addMessage.mutateAsync({
+              sessionId,
+              role: 'system',
+              content: 'I couldn\'t process that question properly. Let\'s try a different approach.'
+            });
+          }
+        }
+        
+        return;
       }
       
-      const data = await response.json?.();
+      const data = await response.json();
       
       if (!data || !Array.isArray(data?.columns) || !Array.isArray(data?.rows)) {
         throw new Error('Invalid results data');
@@ -256,18 +324,21 @@ export function ChatInterface({
     } catch (error) {
       console.error('Error executing SQL:', error);
       
+      // Mark this query as failed to prevent infinite retry
+      setFailedQueries(prev => ({ ...prev, [messageId]: true }));
+      
       // Add error message
       await addMessage.mutateAsync({
         sessionId,
         role: 'system',
-        content: `SQL execution error: ${error instanceof Error ? error?.message || 'Unknown error' : 'Unknown error'}`
+        content: 'I encountered an issue executing that query. Let me know if you\'d like to try a different question.'
       });
+      
     } finally {
       // Mark this query as no longer executing
       setExecutingQueries(prev => ({ ...prev, [messageId]: false }));
     }
   };
-
   // Format to display the chat messages
   const renderMessages = () => {
     if (messagesQuery.isLoading) {

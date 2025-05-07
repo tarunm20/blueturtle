@@ -25,6 +25,7 @@ class GenerateSQLRequest(BaseModel):
     message_history: Optional[List[ChatMessage]] = None
     db_connection: DbConnectionRequest
     llm_config: LLMConfig = Field(...)
+    
 class GenerateSQLResponse(BaseModel):
     """Response containing generated SQL"""
     sql: str
@@ -48,3 +49,12 @@ class VisualizationRecommendation(BaseModel):
     yAxis: Optional[str] = None
     title: Optional[str] = None
     explanation: Optional[str] = None
+
+class RegenerateSQLRequest(BaseModel):
+    """Request to regenerate SQL from failed attempt"""
+    user_prompt: str
+    message_history: Optional[List[ChatMessage]] = None
+    db_connection: DbConnectionRequest
+    llm_config: LLMConfig = Field(...)
+    failed_sql: str
+    error_message: str

@@ -1,9 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Database } from 'lucide-react';
-import { PageBody, PageHeader } from '@kit/ui/page';
+import { Database, Menu, MessageSquare } from 'lucide-react';
+import { PageHeader } from '@kit/ui/page';
 import { Alert, AlertDescription, AlertTitle } from '@kit/ui/alert';
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle } from 'lucide-react';
+import { Button } from '@kit/ui/button';
 import { 
   DatabaseType, 
   ModelType, 
@@ -12,10 +13,10 @@ import {
 } from './types';
 
 // Import our components
-import { ChatSessionManager } from './ChatSessionManager';
+import { ChatInterface } from './ChatInterface';
 import { ConfigSidebar } from './_components/ConfigSidebar';
 import { DatabaseSchemaViewer } from './_components/DatabaseSchemaViewer';
-import { useChatSessions } from '../hooks/use-chat-sessions';
+import { useSupabase } from '@kit/supabase/hooks/use-supabase';
 
 export default function HomePage() {
   // Database connection state
@@ -39,6 +40,130 @@ export default function HomePage() {
   const [fetchingSchema, setFetchingSchema] = useState<boolean>(false);
   const [isSchemaMinimized, setIsSchemaMinimized] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // UI state
+  const [showMobileConfig, setShowMobileConfig] = useState<boolean>(false);
+  const [showMobileSessions, setShowMobileSessions] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  
+  // Sessions state
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>('');
+  const supabase = useSupabase();
+  
+  // Use useEffect to check if we're on mobile - fixes "window is not defined" error
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
+    
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  // Load chat sessions
+  useEffect(() => {
+    async function loadSessions() {
+      try {
+        const { data: sessions, error } = await supabase
+          .from('chat_sessions')
+          .select('*')
+          .order('updated_at', { ascending: false });
+          
+        if (error) {
+          console.error('Error fetching sessions:', error);
+          return;
+        }
+        
+        setSessions(sessions || []);
+        
+        // Set active session to the first one if we have sessions
+        if (sessions?.length > 0) {
+          setActiveSessionId(sessions[0]?.id || '');
+        } else {
+          // Create a default session if none exist
+          createSession();
+        }
+      } catch (err) {
+        console.error('Error in loadSessions:', err);
+      }
+    }
+    
+    loadSessions();
+  }, [supabase]);
+
+  // Create a new chat session
+  const createSession = async () => {
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        console.error('Error fetching user:', authError);
+        return;
+      }
+      if (!user) {
+        console.error('User not authenticated');
+        return;
+      }
+
+      const newSession = {
+        title: `New Chat ${(sessions?.length || 0) + 1}`,
+        user_id: user.id,
+      };
+      
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .insert(newSession)
+        .select()
+        .single();
+        
+      if (error) {
+        console.error('Error creating session:', error);
+        return;
+      }
+      
+      if (data) {
+        setSessions(prev => [data, ...prev]);
+        setActiveSessionId(data.id);
+        // Close mobile session sidebar after creating a new session
+        setShowMobileSessions(false);
+      }
+    } catch (err) {
+      console.error('Error in createSession:', err);
+    }
+  };
+
+  // Delete a session
+  const deleteSession = async (id: string) => {
+    if (!id) return;
+    
+    try {
+      const { error } = await supabase
+        .from('chat_sessions')
+        .delete()
+        .eq('id', id);
+        
+      if (error) {
+        console.error('Error deleting session:', error);
+        return;
+      }
+      
+      // Update local state
+      const updatedSessions = sessions?.filter(session => session?.id !== id) || [];
+      setSessions(updatedSessions);
+      
+      // If we deleted the active session, select another one
+      if (id === activeSessionId && updatedSessions.length > 0) {
+        setActiveSessionId(updatedSessions[0]?.id || '');
+      } else if (updatedSessions.length === 0) {
+        // Create a new session if we deleted the last one
+        createSession();
+      }
+    } catch (err) {
+      console.error('Error in deleteSession:', err);
+    }
+  };
   
   // Test database connection
   const testDbConnection = async (): Promise<void> => {
@@ -87,6 +212,8 @@ export default function HomePage() {
           
           if (schemaData?.success && schemaData?.schema) {
             setDbSchema(schemaData.schema);
+            // Close mobile menu on successful connection
+            setShowMobileConfig(false);
           } else {
             setError("Connected to database but failed to retrieve schema");
           }
@@ -172,12 +299,49 @@ export default function HomePage() {
   };
 
   return (
-    <>
-      <PageHeader description={'Chat with your database'} />
-      <PageBody className="h-[calc(100vh-180px)]">
-        <div className="grid grid-cols-12 gap-6 h-full">
-          {/* Configuration sidebar */}
-          <div className="col-span-3">
+    <div className="flex flex-col h-screen overflow-hidden">
+      <PageHeader 
+        description={'Chat with your database'} 
+        className="md:px-4 px-2 flex items-center justify-between"
+      >
+        <div className="md:hidden flex space-x-2">
+          <button 
+            onClick={() => setShowMobileConfig(!showMobileConfig)}
+            className="p-2 rounded-md border border-muted-foreground/20 hover:bg-muted transition-colors"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <button 
+            onClick={() => setShowMobileSessions(!showMobileSessions)}
+            className="p-2 rounded-md border border-muted-foreground/20 hover:bg-muted transition-colors"
+          >
+            <MessageSquare className="h-5 w-5" />
+          </button>
+        </div>
+      </PageHeader>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Mobile configuration drawer */}
+        <div 
+          className={`fixed inset-0 bg-background/80 backdrop-blur-sm z-50 md:hidden ${
+            showMobileConfig ? 'block' : 'hidden'
+          }`}
+          onClick={() => setShowMobileConfig(false)}
+        >
+          <div 
+            className="h-full w-[85%] max-w-sm bg-background border-r shadow-lg p-4 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-medium">Configuration</h2>
+              <button 
+                onClick={() => setShowMobileConfig(false)}
+                className="p-1 rounded-full hover:bg-muted transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            
             <ConfigSidebar 
               dbType={dbType}
               setDbType={setDbType}
@@ -206,66 +370,224 @@ export default function HomePage() {
               fetchingSchema={fetchingSchema}
             />
             
-            {/* Error display */}
+            {/* Mobile status indicators */}
             {error && (
               <Alert variant="destructive" className="mt-4">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription className="break-words">{error}</AlertDescription>
               </Alert>
             )}
             
-            {/* Connection status indicators */}
             {dbStatus === "success" && (
               <Alert variant="default" className="mt-4 bg-green-50 dark:bg-green-900/20">
                 <CheckCircle className="h-4 w-4 text-green-500" />
                 <AlertTitle>Database Connected</AlertTitle>
-                <AlertDescription>Ready to chat with your database</AlertDescription>
-              </Alert>
-            )}
-            
-            {modelStatus === "success" && (
-              <Alert variant="default" className="mt-4 bg-blue-50 dark:bg-blue-900/20">
-                <CheckCircle className="h-4 w-4 text-blue-500" />
-                <AlertTitle>Model Connected</AlertTitle>
-                <AlertDescription>Ready to generate SQL</AlertDescription>
               </Alert>
             )}
           </div>
-          
-          {/* Main content area */}
-          <div className="col-span-9 flex flex-col space-y-4">
-            {/* Schema viewer (when connected) */}
-            {dbStatus === "success" && dbSchema && (
-              <DatabaseSchemaViewer 
-                schema={dbSchema} 
-                isMinimized={isSchemaMinimized}
-                toggleMinimize={() => setIsSchemaMinimized(!isSchemaMinimized)}
-              />
-            )}
+        </div>
+        
+        {/* Mobile sessions drawer */}
+        <div 
+          className={`fixed inset-0 bg-background/80 backdrop-blur-sm z-50 md:hidden ${
+            showMobileSessions ? 'block' : 'hidden'
+          }`}
+          onClick={() => setShowMobileSessions(false)}
+        >
+          <div 
+            className="h-full w-[85%] max-w-sm ml-auto bg-background border-l shadow-lg p-4 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-medium">Chat Sessions</h2>
+              <button 
+                onClick={() => setShowMobileSessions(false)}
+                className="p-1 rounded-full hover:bg-muted transition-colors"
+              >
+                ✕
+              </button>
+            </div>
             
-            {/* Chat interface (enabled only when database is connected) */}
-            {dbStatus === "success" ? (
-              <div className="flex-grow">
-                <ChatSessionManager 
-                  dbConfig={getCurrentDbConfig()}
-                  llmConfig={getCurrentLlmConfig()}
-                />
-              </div>
-            ) : (
-              <div className="flex-grow flex items-center justify-center border rounded-lg p-8 bg-muted/10">
-                <div className="text-center">
-                  <Database className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-medium mb-2">Connect to your database</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Use the sidebar to connect to your database before starting a chat.
-                  </p>
+            <Button 
+              variant="outline" 
+              className="w-full mb-4"
+              onClick={createSession}
+            >
+              <span className="mx-auto">New Chat</span>
+            </Button>
+            
+            <div className="space-y-1 overflow-y-auto max-h-[calc(100vh-150px)]">
+              {sessions.map(session => (
+                <div 
+                  key={session?.id}
+                  className={`p-2 rounded cursor-pointer flex justify-between items-center ${
+                    session?.id === activeSessionId ? 'bg-primary/10' : 'hover:bg-muted'
+                  }`}
+                  onClick={() => {
+                    setActiveSessionId(session?.id);
+                    setShowMobileSessions(false);
+                  }}
+                >
+                  <div className="truncate">{session?.title || 'Untitled'}</div>
+                  
+                  {sessions?.length > 1 && (
+                    <button 
+                      className="ml-2 text-muted-foreground hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteSession(session?.id);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Main layout - 3 columns */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left column - Connection Config */}
+          <div className="hidden md:block w-60 border-r overflow-y-auto">
+            <div className="sticky top-0 p-2">
+              <ConfigSidebar 
+                dbType={dbType}
+                setDbType={setDbType}
+                dbHost={dbHost}
+                setDbHost={setDbHost}
+                dbPort={dbPort}
+                setDbPort={setDbPort}
+                dbName={dbName}
+                setDbName={setDbName}
+                dbUser={dbUser}
+                setDbUser={setDbUser}
+                dbPassword={dbPassword}
+                setDbPassword={setDbPassword}
+                modelType={modelType}
+                setModelType={setModelType}
+                modelUrl={modelUrl}
+                setModelUrl={setModelUrl}
+                apiKey={apiKey}
+                setApiKey={setApiKey}
+                customModel={customModel}
+                setCustomModel={setCustomModel}
+                dbStatus={dbStatus}
+                modelStatus={modelStatus}
+                testDbConnection={testDbConnection}
+                testModelConnection={testModelConnection}
+                fetchingSchema={fetchingSchema}
+              />
+              
+              {/* Error and status alerts */}
+              {error && (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription className="break-words">{error}</AlertDescription>
+                </Alert>
+              )}
+              
+              {dbStatus === "success" && (
+                <Alert variant="default" className="mt-4 bg-green-50 dark:bg-green-900/20">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <AlertTitle>Database Connected</AlertTitle>
+                </Alert>
+              )}
+              
+              {modelStatus === "success" && (
+                <Alert variant="default" className="mt-4 bg-blue-50 dark:bg-blue-900/20">
+                  <CheckCircle className="h-4 w-4 text-blue-500" />
+                  <AlertTitle>Model Connected</AlertTitle>
+                </Alert>
+              )}
+            </div>
+          </div>
+          
+          {/* Middle column - Sessions list */}
+          <div className="hidden md:flex md:flex-col w-60 border-r overflow-hidden">
+            <div className="p-2 border-b">
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={createSession}
+              >
+                <span className="mx-auto">New Chat</span>
+              </Button>
+            </div>
+            
+            <div className="overflow-y-auto flex-1 p-2">
+              {sessions.map(session => (
+                <div 
+                  key={session?.id}
+                  className={`p-2 rounded cursor-pointer flex justify-between items-center ${
+                    session?.id === activeSessionId ? 'bg-primary/10' : 'hover:bg-muted'
+                  }`}
+                  onClick={() => setActiveSessionId(session?.id)}
+                >
+                  <div className="truncate">{session?.title || 'Untitled'}</div>
+                  
+                  {sessions?.length > 1 && (
+                    <button 
+                      className="ml-2 text-muted-foreground hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteSession(session?.id);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Two-pane layout for chat and DB schema */}
+          <div className="flex-1 flex overflow-hidden">
+            {/* Main chat area */}
+            <div className="flex-1 max-w-2xl mx-auto overflow-y-auto">
+              {dbStatus === "success" && activeSessionId ? (
+                <div className="h-full">
+                  <ChatInterface 
+                    sessionId={activeSessionId} 
+                    dbConfig={getCurrentDbConfig()}
+                    llmConfig={getCurrentLlmConfig()}
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center p-8">
+                    <Database className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-medium mb-2">Connect to your database</h3>
+                    <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+                      {isMobile ? 
+                        "Tap the menu icon in the top-left to connect to your database." :
+                        "Use the sidebar to connect to your database before starting a chat."
+                      }
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Right pane - DB Schema (fixed width) */}
+            {dbStatus === "success" && dbSchema && (
+              <div className="hidden lg:block w-80 border-l overflow-y-auto">
+                <div className="p-2 h-full overflow-y-auto">
+                  <DatabaseSchemaViewer 
+                    schema={dbSchema} 
+                    isMinimized={isSchemaMinimized}
+                    toggleMinimize={() => setIsSchemaMinimized(!isSchemaMinimized)}
+                  />
                 </div>
               </div>
             )}
           </div>
         </div>
-      </PageBody>
-    </>
+      </div>
+    </div>
   );
 }

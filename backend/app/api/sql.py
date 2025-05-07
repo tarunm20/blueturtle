@@ -4,9 +4,9 @@ import time
 import uuid
 import json
 import re
-from app.models.sql import GenerateSQLRequest, GenerateSQLResponse, ExecuteSQLRequest, ExecuteSQLResponse
+from app.models.sql import GenerateSQLRequest, GenerateSQLResponse, ExecuteSQLRequest, ExecuteSQLResponse, RegenerateSQLRequest
 from app.services import sql_service, llm_service
-from app.utils.prompt_builder import build_llm_prompt, build_llm_prompt_with_history
+from app.utils.prompt_builder import build_llm_prompt, build_llm_prompt_with_history, build_llm_prompt_for_regeneration
 
 router = APIRouter(tags=["sql"])
 
@@ -70,7 +70,60 @@ async def execute_sql(request: Request, req: ExecuteSQLRequest):
     except Exception as e:
         process_time = time.time() - start_time
         print(f"[ERROR:{request_id}] SQL execution failed after {process_time:.2f}s: {str(e)}")
+        
+        # Return a structured error response
+        raise HTTPException(
+            status_code=422, 
+            detail={
+                "error": str(e),
+                "sql": req.sql,
+                "needs_regeneration": True
+            }
+        )
+    
+@router.post("/regenerate_sql", response_model=GenerateSQLResponse)
+async def regenerate_sql(request: Request, req: RegenerateSQLRequest):
+    """Regenerate SQL after a failed attempt"""
+    request_id = str(uuid.uuid4())[:8]
+    print(f"[API:{request_id}] Regenerate SQL request received: '{req.user_prompt[:50]}...'")
+    start_time = time.time()
+    
+    try:
+        # Get database schema
+        schema_str, _ = sql_service.get_schema(req.db_connection.dict())
+        
+        # Create prompt with schema, message history, and error information
+        print(f"[API:{request_id}] Creating prompt with schema, history, and error info")
+        prompt = build_llm_prompt_for_regeneration(
+            req.user_prompt, 
+            schema_str,
+            req.message_history,
+            req.failed_sql,
+            req.error_message
+        )
+        
+        # Generate SQL
+        provider = req.llm_config.provider
+        model = req.llm_config.model or "llama3.2"
+        url = req.llm_config.url or "http://localhost:11434/api/generate"
+        
+        print(f"[API:{request_id}] Calling LLM service for regeneration")
+        sql = await llm_service.generate_sql(
+            provider=provider,
+            model=model,
+            url=url,
+            prompt=prompt
+        )
+        
+        process_time = time.time() - start_time
+        print(f"[API:{request_id}] SQL regeneration completed in {process_time:.2f}s")
+        
+        return GenerateSQLResponse(sql=sql)
+    except Exception as e:
+        process_time = time.time() - start_time
+        print(f"[ERROR:{request_id}] SQL regeneration failed after {process_time:.2f}s: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+    
 
 @router.post("/test_db_connection")
 async def test_db_connection(request: Request, db_config: dict):

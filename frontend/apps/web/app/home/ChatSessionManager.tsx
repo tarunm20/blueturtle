@@ -2,10 +2,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { Button } from '@kit/ui/button';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Trash2 } from 'lucide-react';
 import { useSupabase } from '@kit/supabase/hooks/use-supabase';
 import { ChatInterface } from './ChatInterface';
 import { DatabaseType, ModelType } from './types';
+import { ConfirmDialog } from './_components/ConfirmDialog';
 
 interface ChatSession {
   id: string;
@@ -35,6 +36,10 @@ export function ChatSessionManager({ dbConfig, llmConfig }: ChatSessionManagerPr
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  
+  // State for delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
 
   // Load chat sessions from Supabase
   useEffect(() => {
@@ -113,35 +118,92 @@ export function ChatSessionManager({ dbConfig, llmConfig }: ChatSessionManagerPr
     }
   };
 
-  // Delete a session
-  const deleteSession = async (id: string) => {
-    if (!id) return;
+  // Handle opening delete confirmation dialog
+  const openDeleteConfirmation = (sessionId: string) => {
+    setSessionToDelete(sessionId);
+    setDeleteDialogOpen(true);
+  };
+
+  // Perform deletion with optimistic UI update
+  const confirmDelete = async () => {
+    if (!sessionToDelete) return;
     
     try {
-      const { error } = await supabase
-        .from('chat_sessions')
-        .delete()
-        .eq('id', id);
-        
-      if (error) {
-        console.error('Error deleting session:', error);
-        return;
-      }
-      
-      // Update local state
-      const updatedSessions = sessions?.filter(session => session?.id !== id) || [];
+      // Immediately update the UI (optimistic update)
+      const updatedSessions = sessions?.filter(session => session?.id !== sessionToDelete) || [];
       setSessions(updatedSessions);
       
-      // If we deleted the active session, select another one
-      if (id === activeSessionId && updatedSessions.length > 0) {
-        setActiveSessionId(updatedSessions[0]?.id || '');
-      } else if (updatedSessions.length === 0) {
-        // Create a new session if we deleted the last one
+      // Handle the case when active session is being deleted
+      if (sessionToDelete === activeSessionId) {
+        if (updatedSessions.length > 0) {
+          setActiveSessionId(updatedSessions[0]?.id || '');
+        } else {
+          setActiveSessionId('');
+          // We'll create a new session after the deletion is complete
+        }
+      }
+      
+      // Close dialog immediately to improve perceived performance
+      setDeleteDialogOpen(false);
+      
+      // Process backend deletion in the background
+      const deleteBackend = async () => {
+        try {
+          // Delete query results first
+          const { data: messages } = await supabase
+            .from('chat_messages')
+            .select('id')
+            .eq('session_id', sessionToDelete);
+            
+          if (messages && messages.length > 0) {
+            const messageIds = messages.map(m => m.id);
+            
+            // Delete query results for these messages
+            for (const messageId of messageIds) {
+              await supabase
+                .from('query_results')
+                .delete()
+                .eq('message_id', messageId);
+            }
+          }
+          
+          // Delete all messages
+          await supabase
+            .from('chat_messages')
+            .delete()
+            .eq('session_id', sessionToDelete);
+          
+          // Finally delete the session
+          await supabase
+            .from('chat_sessions')
+            .delete()
+            .eq('id', sessionToDelete);
+          
+        } catch (err) {
+          console.error('Error in background deletion:', err);
+          // Note: We don't undo the UI updates even if deletion fails
+          // as that would be confusing for the user
+        }
+      };
+      
+      // Start background deletion
+      deleteBackend();
+      
+      // Create a new session if needed (we deleted the last one)
+      if (updatedSessions.length === 0) {
         createSession();
       }
-    } catch (err) {
-      console.error('Error in deleteSession:', err);
+      
+    } finally {
+      // Clear session to delete
+      setSessionToDelete(null);
     }
+  };
+
+  // Cancel delete operation
+  const cancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setSessionToDelete(null);
   };
 
   // Create a session if none exist
@@ -173,25 +235,25 @@ export function ChatSessionManager({ dbConfig, llmConfig }: ChatSessionManagerPr
             (sessions || []).map(session => (
               <div 
                 key={session?.id || 'unknown'}
-                className={`p-2 rounded cursor-pointer flex justify-between items-center ${
+                className={`p-2 rounded cursor-pointer flex justify-between items-center group ${
                   session?.id === activeSessionId ? 'bg-primary/10' : 'hover:bg-muted'
                 }`}
                 onClick={() => setActiveSessionId(session?.id || '')}
               >
                 <div className="truncate">{session?.title || 'Untitled'}</div>
                 
-                {sessions?.length > 1 && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={(e) => {
-                      e?.stopPropagation?.();
-                      deleteSession(session?.id || '');
-                    }}
-                  >
-                    ✕
-                  </Button>
-                )}
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openDeleteConfirmation(session?.id || '');
+                  }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  disabled={sessions?.length <= 1}
+                >
+                  <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                </Button>
               </div>
             ))
           )}
@@ -212,6 +274,18 @@ export function ChatSessionManager({ dbConfig, llmConfig }: ChatSessionManagerPr
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialogOpen}
+        onClose={cancelDelete}
+        onConfirm={confirmDelete}
+        title="Delete Chat"
+        description="Are you sure you want to delete this chat? This will permanently remove the chat and all of its messages. This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="destructive"
+      />
     </div>
   );
 }

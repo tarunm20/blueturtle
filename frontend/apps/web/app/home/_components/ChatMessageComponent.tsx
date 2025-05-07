@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@kit/ui/card";
 
 interface ChatMessageProps {
   message: ChatMessage;
-  onExecuteSQL: (sql: string) => Promise<void>;
+  onExecuteSQL: (sql: string, messageId?: string) => Promise<void>;
   onRequestVisualization?: (message: ChatMessage) => Promise<void>;
 }
 
@@ -110,15 +110,15 @@ export const ChatMessageComponent: React.FC<ChatMessageProps> = ({
               </div>
               <pre>{message.sql}</pre>
               <div className="mt-2">
-                <Button 
-                  size="sm" 
-                  onClick={() => onExecuteSQL(message.sql || "")}
-                  disabled={message.executing}
-                  className="mt-2"
-                >
-                  {message.executing ? <Spinner className="mr-2 h-4 w-4" /> : null}
-                  Execute Query
-                </Button>
+              <Button 
+                size="sm" 
+                onClick={() => onExecuteSQL(message.sql || "", message.id)}
+                disabled={message.executing}
+                className="mt-2"
+              >
+                {message.executing ? <Spinner className="mr-2 h-4 w-4" /> : null}
+                Execute Query
+              </Button>
               </div>
             </div>
           )}

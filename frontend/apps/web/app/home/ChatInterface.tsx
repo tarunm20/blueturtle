@@ -1,13 +1,13 @@
 // frontend/apps/web/app/home/ChatInterface.tsx
 
 'use client';
-import { useState, useRef, useEffect, JSXElementConstructor, ReactElement, ReactNode, ReactPortal } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@kit/ui/button';
 import { Textarea } from '@kit/ui/textarea';
 import { Loader2 } from 'lucide-react';
 import { useChatSessions } from '../hooks/use-chat-sessions';
 import { DatabaseType, ModelType, ChatMessage } from './types';
-import { QueryResultsTable } from './_components/QueryResultsTable';
+import { ChatMessageComponent } from './_components/ChatMessageComponent';
 
 interface ChatInterfaceProps {
   sessionId: string;
@@ -142,8 +142,67 @@ export function ChatInterface({
       setIsGenerating(false);
     }
   };
+
+  // Handle visualization request
+  const handleRequestVisualization = async (message: ChatMessage) => {
+    if (!message.results) return;
+    
+    try {
+      // Call the visualization recommendation API
+      const response = await fetch('http://localhost:8000/recommend_visualization', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: messagesQuery.data?.find(msg => msg.role === 'user')?.content || '',
+          columns: message.results.columns,
+          rows: message.results.rows,
+          llm_config: llmConfig
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const visualization = await response.json();
+      
+      // Update the message with visualization recommendation
+      if (message.id) {
+        await addQueryResults.mutateAsync({
+          messageId: message.id,
+          columns: message.results.columns,
+          rows: message.results.rows,
+          visualization
+        });
+      }
+      
+      // If visualization is appropriate, add a system message with explanation
+      if (visualization.visualization) {
+        await addMessage.mutateAsync({
+          sessionId,
+          role: 'system',
+          content: `Based on this data, I recommend a ${visualization.chartType} chart with "${visualization.xAxis}" on the X-axis and "${visualization.yAxis}" on the Y-axis. ${visualization.explanation || ''}`
+        });
+      } else {
+        await addMessage.mutateAsync({
+          sessionId,
+          role: 'system',
+          content: `This data doesn't seem suitable for visualization. ${visualization.explanation || ''}`
+        });
+      }
+    } catch (error) {
+      console.error('Error getting visualization recommendation:', error);
+      
+      // Add error message
+      await addMessage.mutateAsync({
+        sessionId,
+        role: 'system',
+        content: `Could not generate visualization: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    }
+  };
   
-  const executeSQL = async (sql: string, messageId: string) => {
+  const executeSQL = async (sql: string, messageId: string): Promise<void> => {
     if (!sql || !messageId || executingQueries[messageId]) return;
     
     // Mark this query as executing
@@ -238,45 +297,14 @@ export function ChatInterface({
     return messagesQuery.data.map((message, index) => {
       const messageId = message.id || index.toString();
       
-      return (
-        <div 
-          key={messageId}
-          className={`p-3 rounded-lg ${
-            message.role === 'user' 
-              ? 'bg-primary/10 ml-10' 
-              : message.role === 'assistant' 
-                ? 'bg-secondary/10 mr-10' 
-                : 'bg-muted'
-          }`}
-        >
-          <div className="font-medium mb-1">
-            {message.role === 'user' ? 'You' : message.role === 'assistant' ? 'Assistant' : 'System'}
-          </div>
-          <div>{message.content || ''}</div>
-          
-          {message.sql && (
-            <div className="mt-2 p-2 bg-muted rounded font-mono text-sm overflow-auto">
-              <div className="text-xs text-muted-foreground mb-1">SQL Query:</div>
-              <div>{message.sql}</div>
-              {executingQueries[messageId] && (
-                <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin mr-1" /> 
-                  Executing query...
-                </div>
-              )}
-            </div>
-          )}
-          
-          {message.results && (
-            <div className="mt-2">
-              <QueryResultsTable 
-                columns={message.results.columns} 
-                rows={message.results.rows} 
-              />
-            </div>
-          )}
-        </div>
-      );
+    return (
+      <ChatMessageComponent 
+        key={messageId}
+        message={message}
+        onExecuteSQL={(sql: string) => executeSQL(sql, messageId)}
+        onRequestVisualization={handleRequestVisualization}
+      />
+    );
     });
   };
 

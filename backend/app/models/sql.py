@@ -38,3 +38,13 @@ class ExecuteSQLResponse(BaseModel):
     """Response from SQL execution"""
     columns: List[str]
     rows: List[Any]
+
+
+class VisualizationRecommendation(BaseModel):
+    """Model for visualization recommendations"""
+    visualization: bool
+    chartType: Optional[str] = None
+    xAxis: Optional[str] = None
+    yAxis: Optional[str] = None
+    title: Optional[str] = None
+    explanation: Optional[str] = None

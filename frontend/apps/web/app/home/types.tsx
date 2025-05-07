@@ -2,11 +2,23 @@
 export type DatabaseType = "postgres" | "mysql" | "mssql" | "sqlite";
 export type ModelType = "ollama" | "openai" | "custom";
 export type ConnectionStatus = "success" | "error" | "loading" | null;
+export type ChartType = "bar" | "line" | "pie" | "table";
 
 // Schema representation
 export interface DBSchema {
   [tableName: string]: string[];
 }
+
+// Visualization recommendation
+export interface VisualizationRecommendation {
+  visualization: boolean;
+  chartType?: ChartType;
+  xAxis?: string;
+  yAxis?: string;
+  title?: string;
+  explanation?: string;
+}
+
 
 // Message types
 export interface BaseMessage {
@@ -28,6 +40,7 @@ export interface AssistantMessage extends BaseMessage {
 export interface SystemMessage extends BaseMessage {
   role: "system";
   results?: QueryResult;
+  visualization?: VisualizationRecommendation;
 }
 
 export interface ChatMessage {
@@ -39,6 +52,8 @@ export interface ChatMessage {
     columns: string[];
     rows: any[][];
   };
+  visualization?: VisualizationRecommendation;
+  executing?: boolean;
 }
 
 export interface QueryResult {

@@ -136,6 +136,7 @@ export type Database = {
           id: string
           message_id: string
           rows: Json | null
+          visualization: Json | null
         }
         Insert: {
           columns?: Json | null
@@ -143,6 +144,7 @@ export type Database = {
           id?: string
           message_id: string
           rows?: Json | null
+          visualization?: Json | null
         }
         Update: {
           columns?: Json | null
@@ -150,6 +152,7 @@ export type Database = {
           id?: string
           message_id?: string
           rows?: Json | null
+          visualization?: Json | null
         }
         Relationships: [
           {

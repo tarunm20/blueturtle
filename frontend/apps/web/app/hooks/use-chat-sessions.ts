@@ -1,7 +1,7 @@
 // frontend/apps/web/app/home/hooks/use-chat-sessions.ts
 import { useSupabase } from '@kit/supabase/hooks/use-supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChatMessage, QueryResult } from '../home/types';
+import { ChatMessage, QueryResult, VisualizationRecommendation } from '../home/types';
 import { Database } from '~/lib/database.types';
 
 export function useChatSessions() {
@@ -64,6 +64,11 @@ export function useChatSessions() {
             columns: queryResult.columns as string[] || [],
             rows: queryResult.rows as any[][] || []
           };
+          
+          // Add visualization data if available
+          if (queryResult.visualization) {
+            result.visualization = (queryResult.visualization as unknown) as VisualizationRecommendation;
+          }
         }
         
         return result;
@@ -145,43 +150,46 @@ export function useChatSessions() {
     }
   });
 
-  // Add query results to a message
-  const addQueryResults = useMutation({
-    mutationFn: async ({ 
-      messageId, 
-      columns, 
-      rows 
-    }: { 
-      messageId: string; 
-      columns: string[]; 
-      rows: any[][]; 
-    }) => {
-      const { data, error } = await supabase
-        .from('query_results')
-        .insert({
-          message_id: messageId,
-          columns,
-          rows
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: async (_, variables) => {
-      // We need to find which session this message belongs to
-      const { data: message } = await supabase
-        .from('chat_messages')
-        .select('session_id')
-        .eq('id', variables.messageId)
-        .single();
-      
-      if (message?.session_id) {
-        queryClient.invalidateQueries({ queryKey: ['chat-messages', message.session_id] });
-      }
-    }
-  });
+    // Add query results to a message
+    const addQueryResults = useMutation({
+        mutationFn: async ({ 
+        messageId, 
+        columns, 
+        rows,
+        visualization 
+        }: { 
+        messageId: string; 
+        columns: string[]; 
+        rows: any[][]; 
+        visualization?: any;
+        }) => {
+        const { data, error } = await supabase
+            .from('query_results')
+            .insert({
+            message_id: messageId,
+            columns,
+            rows,
+            visualization // Include visualization data if provided
+            })
+            .select()
+            .single();
+        
+        if (error) throw error;
+        return data;
+        },
+        onSuccess: async (_, variables) => {
+        // We need to find which session this message belongs to
+        const { data: message } = await supabase
+            .from('chat_messages')
+            .select('session_id')
+            .eq('id', variables.messageId)
+            .single();
+        
+        if (message?.session_id) {
+            queryClient.invalidateQueries({ queryKey: ['chat-messages', message.session_id] });
+        }
+        }
+    });
 
   return {
     getSessions,

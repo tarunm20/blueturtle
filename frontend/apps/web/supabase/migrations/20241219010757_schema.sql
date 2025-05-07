@@ -336,6 +336,7 @@ CREATE TABLE IF NOT EXISTS public.query_results (
   message_id UUID REFERENCES public.chat_messages NOT NULL,
   columns JSONB,
   rows JSONB,
+  visualization JSONB,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

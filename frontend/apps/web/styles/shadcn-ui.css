@@ -1,3 +1,4 @@
+
 /*
 * shadcn-ui.css
 *
@@ -11,6 +12,7 @@
         --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
         --font-heading: var(--font-sans);
 
+        /* BlueTurtle theme - light mode */
         --background: var(--color-white);
         --foreground: var(--color-neutral-950);
 
@@ -20,85 +22,88 @@
         --popover: var(--color-white);
         --popover-foreground: var(--color-neutral-950);
 
-        --primary: var(--color-neutral-950);
+        --primary: hsl(210, 100%, 40%); /* BlueTurtle primary blue */
         --primary-foreground: var(--color-white);
 
-        --secondary: oklch(96.76% 0.0013 286.38);
-        --secondary-foreground: oklch(21.03% 0.0318 264.65);
+        --secondary: hsl(195, 80%, 95%); /* Light blue for secondary elements */
+        --secondary-foreground: hsl(210, 100%, 35%);
 
-        --muted: oklch(96.71% 0.0029 264.54);
-        --muted-foreground: oklch(55.13% 0.0233 264.36);
+        --muted: hsl(210, 40%, 96%); /* Light blue/gray for muted backgrounds */
+        --muted-foreground: hsl(215, 25%, 40%);
 
-        --accent: oklch(96.76% 0.0013 286.38);
-        --accent-foreground: oklch(21.03% 0.0318 264.65);
+        --accent: hsl(210, 40%, 95%); /* Light blue accent */
+        --accent-foreground: hsl(210, 100%, 35%);
 
         --destructive: var(--color-red-500);
         --destructive-foreground: var(--color-white);
 
-        --border: var(--color-gray-100);
-        --input: var(--color-gray-200);
-        --ring: var(--color-neutral-800);
+        --border: hsl(214, 30%, 90%); /* Light blue border */
+        --input: hsl(214, 30%, 85%);
+        --ring: hsl(210, 100%, 40%);
 
         --radius: 0.5rem;
 
-        --chart-1: var(--color-orange-400);
-        --chart-2: var(--color-teal-600);
-        --chart-3: var(--color-green-800);
-        --chart-4: var(--color-yellow-200);
-        --chart-5: var(--color-orange-200);
+        --chart-1: hsl(195, 80%, 50%); /* BlueTurtle blues and teals for charts */
+        --chart-2: hsl(210, 100%, 40%);
+        --chart-3: hsl(220, 70%, 50%);
+        --chart-4: hsl(190, 90%, 50%);
+        --chart-5: hsl(200, 80%, 60%);
 
-        --sidebar-background: var(--color-neutral-50);
-        --sidebar-foreground: oklch(37.05% 0.012 285.8);
-        --sidebar-primary: var(--color-neutral-950);
+        /* Sidebar specific colors */
+        --sidebar-background: hsl(210, 40%, 98%);
+        --sidebar-foreground: hsl(210, 30%, 20%);
+        --sidebar-primary: hsl(210, 100%, 40%);
         --sidebar-primary-foreground: var(--color-white);
-        --sidebar-accent: var(--color-neutral-100);
-        --sidebar-accent-foreground: var(--color-neutral-950);
-        --sidebar-border: var(--border);
-        --sidebar-ring: var(--color-blue-500);
+        --sidebar-accent: hsl(210, 40%, 90%);
+        --sidebar-accent-foreground: hsl(210, 30%, 20%);
+        --sidebar-border: hsl(214, 30%, 90%);
+        --sidebar-ring: hsl(210, 100%, 40%);
     }
 
     .dark {
-        --background: var(--color-neutral-900);
+        /* BlueTurtle theme - dark mode */
+        --background: hsl(222, 40%, 10%); /* Dark blue-gray background */
         --foreground: var(--color-white);
 
-        --card: var(--color-neutral-900);
+        --card: hsl(222, 35%, 12%);
         --card-foreground: var(--color-white);
 
-        --popover: var(--color-neutral-900);
+        --popover: hsl(222, 35%, 12%);
         --popover-foreground: var(--color-white);
 
-        --primary: var(--color-white);
-        --primary-foreground: var(--color-neutral-900);
+        --primary: hsl(210, 100%, 50%); /* Brighter blue for dark mode */
+        --primary-foreground: var(--color-white);
 
-        --secondary: var(--color-neutral-800);
-        --secondary-foreground: oklch(98.43% 0.0017 247.84);
+        --secondary: hsl(222, 30%, 20%);
+        --secondary-foreground: hsl(210, 80%, 80%);
 
-        --muted: var(--color-neutral-800);
-        --muted-foreground: oklch(71.19% 0.0129 286.07);
+        --muted: hsl(222, 30%, 20%);
+        --muted-foreground: hsl(210, 40%, 70%);
 
-        --accent: var(--color-neutral-800);
-        --accent-foreground: oklch(98.48% 0 0);
+        --accent: hsl(222, 30%, 22%);
+        --accent-foreground: hsl(210, 80%, 80%);
 
         --destructive: var(--color-red-700);
         --destructive-foreground: var(--color-white);
 
-        --border: var(--color-neutral-800);
-        --input: var(--color-neutral-700);
-        --ring: oklch(87.09% 0.0055 286.29);
+        --border: hsl(222, 30%, 25%);
+        --input: hsl(222, 30%, 22%);
+        --ring: hsl(210, 100%, 50%);
 
-        --chart-1: var(--color-blue-600);
-        --chart-2: var(--color-emerald-400);
-        --chart-3: var(--color-orange-400);
-        --chart-4: var(--color-purple-500);
-        --chart-5: var(--color-pink-500);
+        --chart-1: hsl(195, 70%, 60%); /* Brighter chart colors for dark mode */
+        --chart-2: hsl(210, 90%, 60%);
+        --chart-3: hsl(220, 70%, 60%);
+        --chart-4: hsl(190, 80%, 60%);
+        --chart-5: hsl(200, 70%, 70%);
 
-        --sidebar-background: var(--color-neutral-900);
+        /* Sidebar specific colors - dark mode */
+        --sidebar-background: hsl(222, 40%, 12%);
         --sidebar-foreground: var(--color-white);
-        --sidebar-primary: var(--color-blue-500);
+        --sidebar-primary: hsl(210, 100%, 50%);
         --sidebar-primary-foreground: var(--color-white);
-        --sidebar-accent: var(--color-neutral-800);
+        --sidebar-accent: hsl(222, 30%, 20%);
         --sidebar-accent-foreground: var(--color-white);
-        --sidebar-border: var(--border);
-        --sidebar-ring: var(--color-blue-500);
+        --sidebar-border: hsl(222, 30%, 25%);
+        --sidebar-ring: hsl(210, 100%, 50%);
     }
 }

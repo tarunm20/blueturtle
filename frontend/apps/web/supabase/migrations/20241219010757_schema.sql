@@ -373,3 +373,4 @@ CREATE TRIGGER update_chat_session_timestamp
 AFTER INSERT ON public.chat_messages
 FOR EACH ROW
 EXECUTE FUNCTION update_chat_session_timestamp();
+

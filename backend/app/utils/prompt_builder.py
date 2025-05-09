@@ -21,7 +21,7 @@ def build_llm_prompt(user_prompt: str, schema: str) -> str:
     }}
     """
 
-<<<<<<< HEAD
+
 def build_chat_prompt(user_message: str, conversation_id: str = None, db_connection = None) -> str:
     """Build a prompt for a chat message"""
     # If a database connection is provided, include schema information
@@ -64,7 +64,7 @@ def build_chat_prompt(user_message: str, conversation_id: str = None, db_connect
     """
     
     return prompt
-=======
+
 def build_llm_prompt_with_history(user_prompt: str, schema: str, message_history=None) -> str:
     """Build a prompt for a query with chat history context"""
     history_text = ""
@@ -171,4 +171,3 @@ def build_llm_prompt_for_regeneration(user_prompt: str, schema: str, message_his
     Output only the SQL query as a JSON object with a "query" field. Do not include explanations or comments.
     Example: {{"query": "SELECT * FROM users WHERE id = 1"}}
     """
->>>>>>> dev

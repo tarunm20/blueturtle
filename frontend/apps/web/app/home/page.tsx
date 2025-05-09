@@ -292,11 +292,6 @@ export default function HomePage() {
   });
 
   return (
-<<<<<<< HEAD
-    <>
-      <ChatPage />
-    </>
-=======
     <div className="flex flex-col h-screen overflow-hidden">
       <PageHeader 
         description={'Chat with your database'} 
@@ -607,6 +602,5 @@ export default function HomePage() {
         />
       )}
     </div>
->>>>>>> dev
   );
 }

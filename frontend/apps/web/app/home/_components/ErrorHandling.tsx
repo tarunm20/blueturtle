@@ -8,12 +8,16 @@ interface ErrorHandlingProps {
   error: string | null;
   onRegenerate?: () => void;
   showRegenerate?: boolean;
+  regenerationAttempt?: number;
+  maxRegenerations?: number;
 }
 
 export const ErrorHandling: React.FC<ErrorHandlingProps> = ({ 
   error, 
   onRegenerate, 
-  showRegenerate = false 
+  showRegenerate = false,
+  regenerationAttempt = 0,
+  maxRegenerations = 3
 }) => {
   const [showTips, setShowTips] = useState(false);
   
@@ -25,6 +29,9 @@ export const ErrorHandling: React.FC<ErrorHandlingProps> = ({
                     error.includes("extract") || 
                     error.includes("parse");
   
+  // Check if we've reached the regeneration limit
+  const reachedLimit = regenerationAttempt >= maxRegenerations;
+  
   return (
     <div className="space-y-2">
       <Alert variant="destructive">
@@ -34,10 +41,22 @@ export const ErrorHandling: React.FC<ErrorHandlingProps> = ({
             <div>
               <AlertTitle>Error</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
+              
+              {reachedLimit && (
+                <div className="mt-2 text-sm">
+                  Maximum regeneration attempts reached. Please try rephrasing your question with more specific details.
+                </div>
+              )}
+              
+              {regenerationAttempt > 0 && !reachedLimit && (
+                <div className="mt-2 text-sm">
+                  Regeneration attempt {regenerationAttempt}/{maxRegenerations}
+                </div>
+              )}
             </div>
           </div>
           
-          {showRegenerate && onRegenerate && (
+          {showRegenerate && onRegenerate && !reachedLimit && (
             <Button 
               variant="outline" 
               size="sm"

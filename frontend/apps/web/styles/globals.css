@@ -15,7 +15,9 @@
 @import './makerkit.css';
 
 /* plugins - update the below if you add a new plugin */
-@plugin "tailwindcss-animate";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* content sources - update the below if you add a new path */
 @source "../../../packages/*/src/**/*.{ts,tsx}";

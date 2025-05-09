@@ -311,6 +311,7 @@ create policy account_image on storage.objects for all using (
         )
     );
 
+<<<<<<< HEAD
 -- STEP 1: Check if accounts table exists, create if it doesn't
 CREATE TABLE IF NOT EXISTS public.accounts (
   id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
@@ -504,10 +505,67 @@ BEGIN
   SET updated_at = NOW()
   WHERE id = NEW.conversation_id;
   
+=======
+-- Create chat_sessions table
+CREATE TABLE IF NOT EXISTS public.chat_sessions (
+  id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users NOT NULL,
+  title TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create chat_messages table
+CREATE TABLE IF NOT EXISTS public.chat_messages (
+  id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
+  session_id UUID REFERENCES public.chat_sessions NOT NULL,
+  role TEXT NOT NULL, -- 'user', 'assistant', or 'system'
+  content TEXT NOT NULL,
+  sql TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Add a table for query results
+CREATE TABLE IF NOT EXISTS public.query_results (
+  id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
+  message_id UUID REFERENCES public.chat_messages NOT NULL,
+  columns JSONB,
+  rows JSONB,
+  visualization JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Add Row Level Security (RLS) policies
+ALTER TABLE public.chat_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.query_results ENABLE ROW LEVEL SECURITY;
+
+-- Create policies so users can only access their own data
+CREATE POLICY chat_sessions_policy ON public.chat_sessions 
+  FOR ALL TO authenticated 
+  USING (user_id = auth.uid());
+
+CREATE POLICY chat_messages_policy ON public.chat_messages 
+  FOR ALL TO authenticated 
+  USING ((SELECT user_id FROM public.chat_sessions WHERE id = session_id) = auth.uid());
+
+CREATE POLICY query_results_policy ON public.query_results 
+  FOR ALL TO authenticated 
+  USING ((SELECT user_id FROM public.chat_sessions WHERE id = (SELECT session_id FROM public.chat_messages WHERE id = message_id)) = auth.uid());
+
+-- Add trigger to update updated_at when messages are added
+CREATE OR REPLACE FUNCTION update_chat_session_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE public.chat_sessions
+  SET updated_at = NOW()
+  WHERE id = NEW.session_id;
+>>>>>>> dev
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
+<<<<<<< HEAD
 -- Create trigger for conversation timestamp updates
 DROP TRIGGER IF EXISTS trig_update_conversation_timestamp ON public.messages;
 CREATE TRIGGER trig_update_conversation_timestamp
@@ -525,3 +583,10 @@ COMMIT;
 -- Add tables to the publication
 ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.conversations;
+=======
+CREATE TRIGGER update_chat_session_timestamp
+AFTER INSERT ON public.chat_messages
+FOR EACH ROW
+EXECUTE FUNCTION update_chat_session_timestamp();
+
+>>>>>>> dev

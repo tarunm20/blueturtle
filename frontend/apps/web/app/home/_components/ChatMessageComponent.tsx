@@ -1,23 +1,41 @@
+<<<<<<< HEAD
 // frontend/apps/web/app/home/_components/ChatMessageComponent.tsx
 
+=======
+import { useState } from "react";
+>>>>>>> dev
 import { Badge } from "@kit/ui/badge";
 import { Button } from "@kit/ui/button";
 import { Spinner } from "@kit/ui/spinner";
-import { Copy, Info } from "lucide-react";
-import { ChatMessage, QueryResult } from "../types";
+import { Copy, Info, BarChart2, ChevronDown, ChevronUp } from "lucide-react";
+import { ChatMessage } from "../types";
+import { Card, CardContent, CardHeader, CardTitle } from "@kit/ui/card";
 
 interface ChatMessageProps {
   message: ChatMessage;
+<<<<<<< HEAD
   previousMessage?: ChatMessage;
   onExecuteSQL?: (sql: string) => Promise<void>; // Make it optional
+=======
+  onExecuteSQL: (sql: string, messageId?: string) => Promise<void>;
+  onRequestVisualization?: (message: ChatMessage) => Promise<void>;
+>>>>>>> dev
 }
 
 export const ChatMessageComponent: React.FC<ChatMessageProps> = ({ 
   message, 
+<<<<<<< HEAD
   previousMessage,
   onExecuteSQL = () => Promise.resolve() // Default empty function
 }) => {
   const shouldGroup = previousMessage?.role === message.role;
+=======
+  onExecuteSQL,
+  onRequestVisualization
+}) => {
+  const [isRequestingViz, setIsRequestingViz] = useState(false);
+  const [showVisualization, setShowVisualization] = useState(true);
+>>>>>>> dev
   
   const bgColorClass = message.role === "user" 
     ? "bg-primary/10" 
@@ -29,6 +47,15 @@ export const ChatMessageComponent: React.FC<ChatMessageProps> = ({
     navigator.clipboard.writeText(text)
       .catch((error) => console.error('Failed to copy text: ', error));
   };
+  
+  const handleVisualizationRequest = async () => {
+    if (onRequestVisualization && !isRequestingViz) {
+      setIsRequestingViz(true);
+      await onRequestVisualization(message);
+      setIsRequestingViz(false);
+    }
+  };
+  
   
   return (
     <div className={`p-4 rounded-lg mb-4 ${bgColorClass} ${shouldGroup ? 'mt-1' : 'mt-4'}`}>
@@ -87,12 +114,26 @@ export const ChatMessageComponent: React.FC<ChatMessageProps> = ({
                 </Button>
               </div>
               <pre>{message.sql}</pre>
+<<<<<<< HEAD
               {message.executing && (
                 <div className="mt-2 flex items-center text-gray-400">
                   <Spinner className="mr-2 h-4 w-4" />
                   <span>Executing query...</span>
                 </div>
               )}
+=======
+              <div className="mt-2">
+              <Button 
+                size="sm" 
+                onClick={() => onExecuteSQL(message.sql || "", message.id)}
+                disabled={message.executing}
+                className="mt-2"
+              >
+                {message.executing ? <Spinner className="mr-2 h-4 w-4" /> : null}
+                Execute Query
+              </Button>
+              </div>
+>>>>>>> dev
             </div>
           )}
         </div>
@@ -107,9 +148,15 @@ export const ChatMessageComponent: React.FC<ChatMessageProps> = ({
       
       {'results' in message && message.results && (
         <div className="mt-3 overflow-x-auto">
-          <div className="font-semibold mb-2 flex items-center">
-            <Info className="h-4 w-4 mr-2" /> Query Results:
+          <div className="font-semibold mb-2 flex items-center justify-between">
+            <div>
+              <Info className="h-4 w-4 mr-2 inline" /> 
+              Query Results:
+            </div>
+        
           </div>
+          
+          {/* Display results table */}
           {message.results.rows && message.results.rows.length > 0 ? (
             <table className="min-w-full bg-card border border-border rounded overflow-hidden">
               <thead className="bg-muted">
@@ -136,6 +183,7 @@ export const ChatMessageComponent: React.FC<ChatMessageProps> = ({
           ) : (
             <p className="text-sm text-muted-foreground">No results found</p>
           )}
+
         </div>
       )}
     </div>

@@ -1,7 +1,7 @@
-// Updated type definitions in frontend/apps/web/app/home/types.tsx
-export type DatabaseType = "postgres" | "mysql" | "mssql" | "sqlite";
-export type ModelType = "ollama" | "openai" | "custom";
-export type ConnectionStatus = "success" | "error" | "loading" | null;
+// frontend/apps/web/app/home/types.tsx
+export type DatabaseType = 'postgres' | 'mysql' | 'mssql' | 'sqlite';
+export type ConnectionStatus = 'loading' | 'success' | 'error' | null;
+export type ModelType = 'ollama' | 'openai' | 'custom';
 
 // Schema representation
 export interface DBSchema {
@@ -79,17 +79,17 @@ export interface DbConnectionResponse {
   message: string;
 }
 
+// Simplified LLM config - backend handles AWS credentials via env vars
 export interface LLMConfig {
-  provider: ModelType;
-  model?: string;
-  url?: string;
-  apiKey?: string;
+  provider: "bedrock";
+  model: string;
 }
 
 export interface GenerateSqlRequest {
   user_prompt: string;
   db_connection: DbConnectionRequest;
   llm_config: LLMConfig;
+  message_history?: Array<{role: string; content: string}>;
 }
 
 export interface ExecuteSqlRequest {

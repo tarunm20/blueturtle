@@ -6,11 +6,10 @@ import { Button } from '@kit/ui/button';
 import { Textarea } from '@kit/ui/textarea';
 import { Loader2 } from 'lucide-react';
 import { useChatSessions } from '../hooks/use-chat-sessions';
-import { DatabaseType, ModelType, ChatMessage } from './types';
+import { DatabaseType, ChatMessage, ModelType } from './types';
 import { QueryResultsTable } from './_components/QueryResultsTable';
 import { useQueryClient } from '@tanstack/react-query';
 
-// Maximum number of regeneration attempts
 const MAX_REGENERATION_ATTEMPTS = 3;
 
 interface ChatInterfaceProps {
@@ -40,8 +39,7 @@ interface RegenerationState {
   
 export function ChatInterface({ 
   sessionId, 
-  dbConfig, 
-  llmConfig 
+  dbConfig 
 }: ChatInterfaceProps) {
   // Validate sessionId
   if (!sessionId) {
@@ -81,20 +79,24 @@ export function ChatInterface({
       // Get recent message history from current data
       const recentMessages = messagesQuery.data?.slice?.(-5) || [];
       
-      // Call API to generate SQL
+      // Call API to generate SQL - NO LLM CONFIG NEEDED
       const response = await fetch('http://localhost:8000/generate_sql', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_prompt: prompt,
           message_history: recentMessages
-            .filter(msg => msg.role === 'user') // Only include user messages for context
+            .filter(msg => msg.role === 'user')
             .map((msg: { role: any; content: any; }) => ({
               role: msg?.role || 'user',
               content: msg?.content || ''
             })),
           db_connection: dbConfig,
-          llm_config: llmConfig
+          // Backend uses environment variables for LLM config
+          llm_config: {
+            provider: "bedrock",
+            model: "anthropic.claude-3-7-sonnet-20250219-v1:0"
+          }
         })
       });
       
@@ -203,7 +205,7 @@ export function ChatInterface({
     setExecutingQueries(prev => ({ ...prev, [messageId]: true }));
     
     try {
-      // Execute the SQL (don't add a "Executing..." message to keep the chat clean)
+      // Execute the SQL
       const response = await fetch('http://localhost:8000/execute_sql', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -217,7 +219,7 @@ export function ChatInterface({
       if (response.status === 422) {
         // Handle SQL syntax error by regenerating
         if (regenerationState && regenerationState.currentAttempt < MAX_REGENERATION_ATTEMPTS) {
-          // Invalidate query to refresh messages (effectively removing the failed attempt visually)
+          // Invalidate query to refresh messages
           queryClient.invalidateQueries({ queryKey: ['chat-messages', sessionId] });
           
           // Increment attempt count and try again
@@ -231,7 +233,7 @@ export function ChatInterface({
           
           return;
         } else {
-          // Max attempts reached, add a generic response instead of an error
+          // Max attempts reached, add a generic response
           await addMessage.mutateAsync({
             sessionId,
             role: 'assistant',
@@ -256,7 +258,7 @@ export function ChatInterface({
         sessionId,
         role: 'system',
         content: `Query returned ${data.rows?.length || 0} rows.`,
-        sql: sql  // Include the SQL for reference
+        sql: sql
       });
       
       // Store query results
@@ -298,7 +300,7 @@ export function ChatInterface({
     }
   };
 
-  // Format to display the chat messages - only show messages we want users to see
+  // Format to display the chat messages
   const renderMessages = () => {
     if (messagesQuery.isLoading) {
       return (
@@ -317,7 +319,6 @@ export function ChatInterface({
     }
     
     // Filter messages to only show successful ones or user messages
-    // This hides error messages and failed attempts
     const filteredMessages = messagesQuery.data?.filter(message => {
       // Always show user messages
       if (message.role === 'user') return true;

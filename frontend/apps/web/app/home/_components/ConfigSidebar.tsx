@@ -1,10 +1,11 @@
+// ConfigSidebar.tsx - Sidebar component for configuration with locked model section
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@kit/ui/card";
 import { Button } from "@kit/ui/button";
 import { Input } from "@kit/ui/input";
 import { Spinner } from "@kit/ui/spinner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@kit/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@kit/ui/tabs";
-import { Database, AlertCircle, CheckCircle, LockKeyhole, X } from "lucide-react";
+import { Database, AlertCircle, CheckCircle, LockKeyhole, Lock } from "lucide-react";
 import { DatabaseType, ModelType, ConnectionStatus } from "../types";
 
 interface ConfigSidebarProps {
@@ -33,7 +34,6 @@ interface ConfigSidebarProps {
   testDbConnection: () => Promise<void>;
   testModelConnection: () => Promise<void>;
   fetchingSchema: boolean;
-  onClose?: () => void;
 }
 
 export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({ 
@@ -49,8 +49,7 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
   customModel, setCustomModel,
   dbStatus, modelStatus,
   testDbConnection, testModelConnection,
-  fetchingSchema,
-  onClose
+  fetchingSchema
 }) => {
   // Default ports for different database types
   const getDefaultPort = () => {
@@ -75,28 +74,23 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
 
   return (
     <Card className="h-full">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="text-lg flex items-center">
-            <Database className="h-5 w-5 mr-2" />
-            Connections
-          </CardTitle>
-          <CardDescription>
-            Configure your database and model
-          </CardDescription>
-        </div>
-        {onClose && (
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-5 w-5" />
-          </Button>
-        )}
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center">
+          <Database className="h-5 w-5 mr-2" />
+          Connections
+        </CardTitle>
+        <CardDescription>
+          Configure your database and model
+        </CardDescription>
       </CardHeader>
-      
       <CardContent className="space-y-6">
         <Tabs defaultValue="database">
           <TabsList className="w-full">
             <TabsTrigger value="database" className="w-1/2">Database</TabsTrigger>
-            <TabsTrigger value="model" className="w-1/2">Model</TabsTrigger>
+            <TabsTrigger value="model" className="w-1/2 opacity-50 cursor-not-allowed">
+              <Lock className="h-3 w-3 mr-1" />
+              Model
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="database" className="space-y-4 pt-4">
@@ -201,75 +195,38 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
           </TabsContent>
           
           <TabsContent value="model" className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Model Type</label>
-              <Select value={modelType} onValueChange={(value: string) => setModelType(value as ModelType)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select model type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ollama">Local (Ollama)</SelectItem>
-                  <SelectItem value="openai">OpenAI</SelectItem>
-                  <SelectItem value="custom">Custom</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* Disabled Model Section */}
+            <div className="border border-muted rounded-md p-4 bg-muted/30 opacity-50">
+              <div className="flex items-center justify-center mb-4">
+                <Lock className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-center font-medium text-muted-foreground mb-2">
+                Model Configuration Locked
+              </h3>
+              <p className="text-sm text-center text-muted-foreground">
+                The model configuration is currently locked by the administrator.
+                A default configuration is automatically used for all queries.
+              </p>
+              
+              {/* Display current model configuration (read-only) */}
+              <div className="mt-6 space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Model Type:</span>
+                  <span>Claude</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Model:</span>
+                  <span>Sonnet 3.7</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status:</span>
+                  <span className="flex items-center">
+                    <CheckCircle className="h-3 w-3 text-green-500 mr-1" />
+                    Connected
+                  </span>
+                </div>
+              </div>
             </div>
-            
-            {modelType === "ollama" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Model Name</label>
-                <Select value={customModel} onValueChange={setCustomModel}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="llama3.2">Llama 3.2</SelectItem>
-                    <SelectItem value="mistral">Mistral</SelectItem>
-                    <SelectItem value="phi3">Phi-3</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            
-            {modelType === "openai" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">API Key</label>
-                <Input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk-..."
-                  className="font-mono text-sm"
-                />
-              </div>
-            )}
-            
-            {modelType === "custom" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Model URL</label>
-                <Input
-                  value={modelUrl}
-                  onChange={(e) => setModelUrl(e.target.value)}
-                  placeholder="http://localhost:11434/api/generate"
-                  className="font-mono text-sm"
-                />
-              </div>
-            )}
-            
-            <Button 
-              onClick={testModelConnection} 
-              className="w-full"
-              disabled={modelStatus === "loading"}
-            >
-              {modelStatus === "loading" && <Spinner className="mr-2 h-4 w-4" />}
-              {modelStatus === "success" ? (
-                <><CheckCircle className="mr-2 h-4 w-4" /> Connected</>
-              ) : modelStatus === "error" ? (
-                <><AlertCircle className="mr-2 h-4 w-4" /> Connection Failed</>
-              ) : (
-                "Test Connection"
-              )}
-            </Button>
           </TabsContent>
         </Tabs>
       </CardContent>

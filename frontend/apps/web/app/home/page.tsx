@@ -371,9 +371,9 @@ export default function HomePage() {
               )}
               
               {dbStatus === "success" && (
-                <Alert variant="default" className="mt-4 bg-green-50 dark:bg-green-900/20">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <AlertTitle>Database Connected</AlertTitle>
+                <Alert variant="default" className="mt-4 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+                  <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" />
+                  <AlertTitle className="text-green-800 dark:text-green-100">Database Connected</AlertTitle>
                 </Alert>
               )}
             </div>
@@ -484,16 +484,16 @@ export default function HomePage() {
               )}
               
               {dbStatus === "success" && (
-                <Alert variant="default" className="mt-4 bg-green-50 dark:bg-green-900/20">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <AlertTitle>Database Connected</AlertTitle>
+                <Alert variant="default" className="mt-4 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+                  <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" />
+                  <AlertTitle className="text-green-800 dark:text-green-100">Database Connected</AlertTitle>
                 </Alert>
               )}
               
               {modelStatus === "success" && (
-                <Alert variant="default" className="mt-4 bg-blue-50 dark:bg-blue-900/20">
-                  <CheckCircle className="h-4 w-4 text-blue-500" />
-                  <AlertTitle>Model Connected</AlertTitle>
+                <Alert variant="default" className="mt-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                  <CheckCircle className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                  <AlertTitle className="text-blue-800 dark:text-blue-100">Model Connected</AlertTitle>
                 </Alert>
               )}
             </div>

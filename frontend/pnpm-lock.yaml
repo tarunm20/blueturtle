@@ -199,18 +199,6 @@ importers:
         specifier: ^5.7.3
         version: 5.7.3
 
-  packages/blueturtle:
-    devDependencies:
-      '@kit/eslint-config':
-        specifier: workspace:*
-        version: link:../../tooling/eslint
-      '@kit/prettier-config':
-        specifier: workspace:*
-        version: link:../../tooling/prettier
-      '@kit/tsconfig':
-        specifier: workspace:*
-        version: link:../../tooling/typescript
-
   packages/features/accounts:
     dependencies:
       nanoid:

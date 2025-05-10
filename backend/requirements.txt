@@ -9,3 +9,4 @@ httpx
 pydantic>=2.0.0
 pydantic-settings
 python-dotenv
+boto3>=1.28.57

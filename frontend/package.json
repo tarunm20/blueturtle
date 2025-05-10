@@ -1,5 +1,5 @@
 {
-  "name": "next-supabase-saas-kit-turbo-lite",
+  "name": "blueturtle",
   "version": "0.2.0",
   "private": true,
   "sideEffects": false,
@@ -7,8 +7,8 @@
     "node": ">=v18.18.0"
   },
   "author": {
-    "url": "https://makerkit.dev",
-    "name": "MakerKit"
+    "url": "https://blueturtle.ai",
+    "name": "BlueTurtle"
   },
   "scripts": {
     "preinstall": "pnpm run --filter scripts requirements",
@@ -47,11 +47,5 @@
     "prettier": "^3.5.1",
     "turbo": "2.4.2",
     "typescript": "^5.7.3"
-<<<<<<< HEAD
-  },
-  "dependencies": {
-    "axios": "^1.9.0"
-=======
->>>>>>> dev
   }
 }

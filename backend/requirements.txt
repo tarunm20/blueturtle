@@ -1,12 +1,10 @@
-fastapi
-uvicorn[standard]
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
 sqlalchemy>=2.0.0
-# Database drivers
-psycopg2-binary  # PostgreSQL
-pymysql          # MySQL
-pyodbc           # SQL Server
-httpx
+psycopg2-binary
+pymysql
+httpx==0.25.2
 pydantic>=2.0.0
-pydantic-settings
-python-dotenv
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
 boto3>=1.28.57

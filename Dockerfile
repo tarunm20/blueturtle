@@ -7,8 +7,8 @@ ENV PYTHONPATH=/app
 # Set working directory
 WORKDIR /app
 
-# Copy only backend files to the container
-COPY backend/ ./
+# Copy your backend directory to the container
+COPY backend/ .
 
 # Install system dependencies for database drivers
 RUN apt-get update && apt-get install -y \
@@ -19,8 +19,8 @@ RUN apt-get update && apt-get install -y \
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose port (Railway will assign the actual port)
+# Expose port
 EXPOSE 8000
 
-# Use your existing run.py file which handles PORT correctly
+# Run the application - run.py is now in the current directory
 CMD ["python", "run.py"]

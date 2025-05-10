@@ -1,0 +1,15 @@
+# nixpacks.toml
+[variables]
+NIXPACKS_BUILD_DIR = "backend"
+
+[phases.setup]
+onlyIncludeFiles = ["backend/**"]
+nixPkgs = ["python3", "python3Packages.pip"]
+
+[phases.install]
+cmds = ["cd backend && pip install -r requirements.txt"]
+
+[phases.build]
+
+[start]
+cmd = "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"

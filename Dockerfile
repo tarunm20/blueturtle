@@ -7,7 +7,7 @@ ENV PYTHONPATH=/app
 # Set working directory
 WORKDIR /app
 
-# Copy only backend files
+# Copy only backend files to the container
 COPY backend/ ./
 
 # Install system dependencies for database drivers
@@ -19,8 +19,8 @@ RUN apt-get update && apt-get install -y \
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose port
-EXPOSE $PORT
+# Expose port (Railway will assign the actual port)
+EXPOSE 8000
 
-# Start the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use your existing run.py file which handles PORT correctly
+CMD ["python", "run.py"]

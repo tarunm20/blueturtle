@@ -1,4 +1,5 @@
 # app/main.py
+import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import time
@@ -14,14 +15,20 @@ app = FastAPI(
 )
 
 # CORS middleware for handling cross-origin requests
+# app/main.py
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
+    allow_origins=[
+        "http://localhost:3000",  # Local development
+        "https://localhost:3000", # Local HTTPS
+        f"https://{os.getenv('RAILWAY_PUBLIC_DOMAIN', '')}",  # Railway domain
+        os.getenv("FRONTEND_URL", ""),  # Your frontend URL
+        "*"  # Only for development - remove in production
+    ],
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-
 # Include routers
 app.include_router(sql.router)
 app.include_router(llm.router)

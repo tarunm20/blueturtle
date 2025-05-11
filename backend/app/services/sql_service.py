@@ -1,4 +1,4 @@
-# app/services/sql_service.py
+# app/services/sql_service.py - Updated to handle connection URI
 import time
 from app.utils.colors import Colors as C
 from app.utils.db_utils import test_connection, get_db_schema, execute_sql as execute_sql_query
@@ -40,7 +40,23 @@ def execute_sql(sql: str, db_config: dict) -> dict:
 def test_db_connection(db_config: dict) -> dict:
     """Test if a database connection is valid"""
     print(f"{C.SQL}[SQL]{C.RESET} Testing connection to database...")
+    print(f"{C.SQL}[SQL]{C.RESET} Connection config: {db_config.keys()}")
     start_time = time.time()
+    
+    # Validate that we have either connection_uri or the required individual fields
+    if 'connection_uri' not in db_config:
+        db_type = db_config.get('db_type')
+        if not db_type:
+            return {"success": False, "message": "Database type is required if not using connection URI"}
+            
+        if db_type != 'sqlite':
+            if not db_config.get('db_host'):
+                return {"success": False, "message": "Database host is required for non-SQLite databases"}
+            if not db_config.get('db_name'):
+                return {"success": False, "message": "Database name is required"}
+        else:
+            if not db_config.get('db_name'):
+                return {"success": False, "message": "Database file path is required for SQLite"}
     
     try:
         result = test_connection(db_config)

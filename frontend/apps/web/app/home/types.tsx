@@ -46,6 +46,7 @@ export interface ChatMessage {
   results?: {
     columns: string[];
     rows: any[][];
+    visualization?: ChartData;
   };
   executing?: boolean;
 }
@@ -53,6 +54,7 @@ export interface ChatMessage {
 export interface QueryResult {
   columns: string[];
   rows: any[][];
+  visualization?: ChartData;
 }
 
 export interface SqlResponse {
@@ -95,4 +97,22 @@ export interface GenerateSqlRequest {
 export interface ExecuteSqlRequest {
   sql: string;
   db_connection: DbConnectionRequest;
+}
+
+export interface ChartData {
+  chartType: 'bar' | 'line' | 'pie';
+  xAxis: string;
+  yAxis: string;
+  title: string;
+  explanation: string;
+}
+
+export interface VisualizationResponse {
+  visualization: boolean;
+  chartType?: 'bar' | 'line' | 'pie';
+  xAxis?: string;
+  yAxis?: string;
+  title?: string;
+  explanation?: string;
+  error?: string;
 }

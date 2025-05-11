@@ -1,4 +1,4 @@
-# app/models/db.py
+# app/models/db.py - Updated to support connection URIs
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 
@@ -8,6 +8,20 @@ class DbConnectionRequest(BaseModel):
     db_host: Optional[str] = Field(None, description="Database host (not needed for SQLite)")
     db_port: Optional[str] = Field(None, description="Database port (not needed for SQLite)")
     db_name: str = Field(..., description="Database name or file path for SQLite")
+    db_user: Optional[str] = Field(None, description="Database username (not needed for SQLite)")
+    db_password: Optional[str] = Field(None, description="Database password (not needed for SQLite)")
+    
+    class Config:
+        # This ensures extra attributes are ignored
+        extra = "ignore"
+
+class DbConnectionWithUri(BaseModel):
+    """Database connection model that supports both individual fields and URI"""
+    connection_uri: Optional[str] = Field(None, description="Full database connection URI")
+    db_type: Optional[str] = Field(None, description="Database type (postgres, mysql, mssql, sqlite)")
+    db_host: Optional[str] = Field(None, description="Database host (not needed for SQLite)")
+    db_port: Optional[str] = Field(None, description="Database port (not needed for SQLite)")
+    db_name: Optional[str] = Field(None, description="Database name or file path for SQLite")
     db_user: Optional[str] = Field(None, description="Database username (not needed for SQLite)")
     db_password: Optional[str] = Field(None, description="Database password (not needed for SQLite)")
     

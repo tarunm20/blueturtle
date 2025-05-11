@@ -1,7 +1,7 @@
-# app/models/sql.py
+# app/models/sql.py - Modified to support connection URIs
 from pydantic import BaseModel, Field
 from typing import List, Any, Dict, Optional
-from app.models.db import DbConnectionRequest
+from app.models.db import DbConnectionRequest, DbConnectionWithUri
 
 class LLMConfig(BaseModel):
     """LLM configuration parameters"""
@@ -23,7 +23,7 @@ class GenerateSQLRequest(BaseModel):
     """Request to generate SQL from natural language"""
     user_prompt: str
     message_history: Optional[List[ChatMessage]] = None
-    db_connection: DbConnectionRequest
+    db_connection: DbConnectionWithUri  # Changed to use the updated model
     llm_config: LLMConfig = Field(...)
     
 class GenerateSQLResponse(BaseModel):
@@ -33,13 +33,12 @@ class GenerateSQLResponse(BaseModel):
 class ExecuteSQLRequest(BaseModel):
     """Request to execute SQL"""
     sql: str
-    db_connection: DbConnectionRequest
+    db_connection: DbConnectionWithUri  # Changed to use the updated model
 
 class ExecuteSQLResponse(BaseModel):
     """Response from SQL execution"""
     columns: List[str]
     rows: List[Any]
-
 
 class VisualizationRecommendation(BaseModel):
     """Model for visualization recommendations"""
@@ -54,7 +53,7 @@ class RegenerateSQLRequest(BaseModel):
     """Request to regenerate SQL from failed attempt"""
     user_prompt: str
     message_history: Optional[List[ChatMessage]] = None
-    db_connection: DbConnectionRequest
+    db_connection: DbConnectionWithUri  # Changed to use the updated model
     llm_config: LLMConfig = Field(...)
     failed_sql: str
     error_message: str

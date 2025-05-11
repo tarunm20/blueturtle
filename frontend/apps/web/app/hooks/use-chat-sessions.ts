@@ -160,18 +160,27 @@ export function useChatSessions() {
     mutationFn: async ({ 
       messageId, 
       columns, 
-      rows 
+      rows,
+      visualization 
     }: { 
       messageId: string; 
       columns: string[]; 
       rows: any[][]; 
+      visualization?: { 
+        chartType: string;
+        xAxis: string;
+        yAxis: string;
+        title: string;
+        explanation: string;
+      } | null;
     }) => {
       const { data, error } = await supabase
         .from('query_results')
         .insert({
           message_id: messageId,
           columns,
-          rows
+          rows,
+          visualization
         })
         .select()
         .single();

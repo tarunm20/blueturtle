@@ -36,26 +36,6 @@ export type Database = {
     Tables: {
       accounts: {
         Row: {
-<<<<<<< HEAD
-          created_at: string | null;
-          created_by: string | null;
-          email: string | null;
-          id: string;
-          name: string;
-          picture_url: string | null;
-          public_data: Json;
-          updated_at: string | null;
-          updated_by: string | null;
-          chat_preferences: Json;
-          monthly_token_usage: number | null;
-          monthly_query_count: number | null;
-          monthly_reset_date: string | null;
-          plan_tier: string | null;
-          plan_expires_at: string | null;
-          last_active_at: string | null;
-          chat_onboarded: boolean | null;
-        };
-=======
           created_at: string | null
           created_by: string | null
           email: string | null
@@ -66,7 +46,6 @@ export type Database = {
           updated_at: string | null
           updated_by: string | null
         }
->>>>>>> dev
         Insert: {
           created_at?: string | null
           created_by?: string | null
@@ -79,130 +58,6 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
-<<<<<<< HEAD
-          created_at?: string | null;
-          created_by?: string | null;
-          email?: string | null;
-          id?: string;
-          name?: string;
-          picture_url?: string | null;
-          public_data?: Json;
-          updated_at?: string | null;
-          updated_by?: string | null;
-        };
-        Relationships: [];
-      };
-
-      db_connections: {
-        Row: {
-          id: string;
-          user_id: string;
-          name: string;
-          db_type: string;
-          config: Json;
-          created_at: string | null;
-          updated_at: string | null;
-          last_used_at: string | null;
-          is_active: boolean;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          name: string;
-          db_type: string;
-          config: Json;
-          created_at?: string | null;
-          updated_at?: string | null;
-          last_used_at?: string | null;
-          is_active?: boolean;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          name?: string;
-          db_type?: string;
-          config?: Json;
-          created_at?: string | null;
-          updated_at?: string | null;
-          last_used_at?: string | null;
-          is_active?: boolean;
-        };
-      };
-
-      conversations: {
-        Row: {
-          id: string;
-          user_id: string;
-          title: string | null;
-          created_at: string | null;
-          updated_at: string | null;
-          model_type: string | null;
-          model_config: Json;
-          db_connection_id: string | null;
-          metadata: Json;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          title?: string | null;
-          created_at?: string | null;
-          updated_at?: string | null;
-          model_type?: string | null;
-          model_config?: Json;
-          db_connection_id?: string | null;
-          metadata?: Json;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          title?: string | null;
-          created_at?: string | null;
-          updated_at?: string | null;
-          model_type?: string | null;
-          model_config?: Json;
-          db_connection_id?: string | null;
-          metadata?: Json;
-        };
-      };
-
-      messages: {
-        Row: {
-          id: string;
-          conversation_id: string;
-          role: string;
-          content: string;
-          created_at: string | null;
-          sql: string | null;
-          result: Json | null;
-          tokens_used: number | null;
-          metadata: Json;
-        };
-        Insert: {
-          id?: string;
-          conversation_id: string;
-          role: string;
-          content: string;
-          created_at?: string | null;
-          sql?: string | null;
-          result?: Json | null;
-          tokens_used?: number | null;
-          metadata?: Json;
-        };
-        Update: {
-          id?: string;
-          conversation_id?: string;
-          role?: string;
-          content?: string;
-          created_at?: string | null;
-          sql?: string | null;
-          result?: Json | null;
-          tokens_used?: number | null;
-          metadata?: Json;
-        };
-      };
-      
-    };
-=======
           created_at?: string | null
           created_by?: string | null
           email?: string | null
@@ -313,7 +168,6 @@ export type Database = {
         ]
       }
     }
->>>>>>> dev
     Views: {
       [_ in never]: never
     }

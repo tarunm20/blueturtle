@@ -1,13 +1,30 @@
-# app/utils/db_utils.py
+# app/utils/db_utils.py - Updated to support connection URI strings
 from sqlalchemy import create_engine, inspect, MetaData, text
 from sqlalchemy.exc import SQLAlchemyError
 import logging
 from app.utils.colors import Colors as C
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
 def build_connection_string(db_config: dict) -> str:
-    """Build a SQLAlchemy connection string from database configuration"""
+    """Build a SQLAlchemy connection string from database configuration or use provided URI"""
+    # Check if a connection URI is provided directly
+    if 'connection_uri' in db_config and db_config['connection_uri']:
+        # Validate the connection URI
+        try:
+            # Basic validation - check if it's a valid URI format
+            parsed_uri = urlparse(db_config['connection_uri'])
+            if not parsed_uri.scheme or not parsed_uri.netloc:
+                raise ValueError("Invalid connection URI format")
+                
+            # Return the connection URI as-is
+            print(f"{C.SQL}[SQL]{C.RESET} Using provided connection URI")
+            return db_config['connection_uri']
+        except Exception as e:
+            raise ValueError(f"Invalid connection URI: {str(e)}")
+    
+    # If no connection URI, use the individual parameters
     db_type = db_config.get('db_type', '')
     
     if db_type == 'sqlite':

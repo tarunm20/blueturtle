@@ -1,4 +1,4 @@
-# app/api/sql.py
+# app/api/sql.py - Updated to handle connection URI
 from fastapi import APIRouter, HTTPException, Request
 import time
 import uuid
@@ -7,8 +7,20 @@ import re
 from app.models.sql import GenerateSQLRequest, GenerateSQLResponse, ExecuteSQLRequest, ExecuteSQLResponse, RegenerateSQLRequest
 from app.services import sql_service, llm_service
 from app.utils.prompt_builder import build_llm_prompt, build_llm_prompt_with_history, build_llm_prompt_for_regeneration
+from pydantic import BaseModel
+from typing import Optional, Dict, Any
 
 router = APIRouter(tags=["sql"])
+
+class DbConnectionInput(BaseModel):
+    """Input model that accepts either individual fields or a connection URI"""
+    connection_uri: Optional[str] = None
+    db_type: Optional[str] = None
+    db_host: Optional[str] = None
+    db_port: Optional[str] = None
+    db_name: Optional[str] = None
+    db_user: Optional[str] = None
+    db_password: Optional[str] = None
 
 @router.post("/generate_sql", response_model=GenerateSQLResponse)
 async def generate_sql(request: Request, req: GenerateSQLRequest):
@@ -126,13 +138,15 @@ async def regenerate_sql(request: Request, req: RegenerateSQLRequest):
     
 
 @router.post("/test_db_connection")
-async def test_db_connection(request: Request, db_config: dict):
+async def test_db_connection(request: Request, db_config: DbConnectionInput):
     """Test if a database connection is valid"""
     request_id = str(uuid.uuid4())[:8]
     print(f"[API:{request_id}] Test database connection request")
     
     try:
-        result = sql_service.test_db_connection(db_config)
+        # Convert to dict for compatibility with existing functions
+        config_dict = db_config.dict(exclude_none=True)
+        result = sql_service.test_db_connection(config_dict)
         print(f"[API:{request_id}] Connection test result: {result['success']}")
         return result
     except Exception as e:
@@ -140,15 +154,18 @@ async def test_db_connection(request: Request, db_config: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/get_db_schema")
-async def get_db_schema_endpoint(request: Request, db_config: dict):
+async def get_db_schema_endpoint(request: Request, db_config: DbConnectionInput):
     """Get the database schema in a structured format"""
     request_id = str(uuid.uuid4())[:8]
     print(f"[API:{request_id}] Get database schema request")
     start_time = time.time()
     
     try:
+        # Convert to dict for compatibility with existing functions
+        config_dict = db_config.dict(exclude_none=True)
+        
         # Get the schema
-        _, schema_dict = sql_service.get_schema(db_config)
+        _, schema_dict = sql_service.get_schema(config_dict)
         
         process_time = time.time() - start_time
         print(f"[API:{request_id}] Schema processed in {process_time:.2f}s")

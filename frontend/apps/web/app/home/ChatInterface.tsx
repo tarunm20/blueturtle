@@ -9,6 +9,9 @@ import { useChatSessions } from '../hooks/use-chat-sessions';
 import { DatabaseType, ChatMessage, ModelType } from './types';
 import { QueryResultsTable } from './_components/QueryResultsTable';
 import { useQueryClient } from '@tanstack/react-query';
+import { ChartVisualization } from './_components/ChartVisualization';
+import { VisualizationResponse } from './types';
+import { BarChart2 } from 'lucide-react';
 
 const MAX_REGENERATION_ATTEMPTS = 3;
 
@@ -59,8 +62,13 @@ export function ChatInterface({
   
   // State for tracking regeneration attempts
   const [regenerationState, setRegenerationState] = useState<RegenerationState | null>(null);
+
+  const [visualizations, setVisualizations] = useState<Record<string, VisualizationResponse>>({});
+  const [creatingChart, setCreatingChart] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   // Auto-scroll to bottom when messages update
   useEffect(() => {
@@ -80,7 +88,7 @@ export function ChatInterface({
       const recentMessages = messagesQuery.data?.slice?.(-5) || [];
       
       // Call API to generate SQL - NO LLM CONFIG NEEDED
-      const response = await fetch('http://localhost:8000/generate_sql', {
+      const response = await fetch(API_URL + '/generate_sql', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -94,9 +102,14 @@ export function ChatInterface({
           db_connection: dbConfig,
           // Backend uses environment variables for LLM config
           llm_config: {
-            provider: "bedrock",
-            model: "anthropic.claude-3-7-sonnet-20250219-v1:0"
+          provider: "bedrock",
+          model: "anthropic.claude-3-7-sonnet-20250219-v1:0"
           }
+          // llm_config: {
+          //   provider: "ollama",
+          //   model: "llama3.2", // or whatever model you're using
+          //   url: "http://localhost:11434/api/generate"
+          // }
         })
       });
       
@@ -171,7 +184,83 @@ export function ChatInterface({
       }
     }
   };
+
+const createVisualization = async (messageId: string, results: { columns: string[], rows: any[][] }) => {
+  if (!messageId || !results || creatingChart === messageId) return;
   
+  setCreatingChart(messageId);
+  
+  try {
+    // Get the user's original question from the message history
+    const systemMessage = messagesQuery.data?.find(m => m.id === messageId);
+    const userMessage = messagesQuery.data?.find(m => 
+      m.role === 'user' && 
+      messagesQuery.data?.indexOf(m) < messagesQuery.data?.indexOf(systemMessage!)
+    );
+    
+    const userQuestion = userMessage?.content || "Data visualization";
+    
+    // Call visualization recommendation API
+    const response = await fetch(API_URL + '/recommend_visualization', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: userQuestion,
+        columns: results.columns,
+        rows: results.rows,
+        llm_config: {
+          provider: "bedrock",
+          model: "anthropic.claude-3-7-sonnet-20250219-v1:0"
+        }
+        // llm_config: {
+        //   provider: "ollama",
+        //   model: "llama3.2",
+        //   url: "http://localhost:11434/api/generate"
+        // }
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Store the visualization configuration
+    setVisualizations(prev => ({
+      ...prev,
+      [messageId]: data
+    }));
+    
+    // Update the database with the visualization config if successful
+    if (data.visualization) {
+      await addQueryResults.mutateAsync({
+        messageId,
+        columns: results.columns,
+        rows: results.rows,
+        visualization: {
+          chartType: data.chartType,
+          xAxis: data.xAxis,
+          yAxis: data.yAxis,
+          title: data.title,
+          explanation: data.explanation
+        }
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error creating visualization:', error);
+    setVisualizations(prev => ({
+      ...prev,
+      [messageId]: {
+        visualization: false,
+        error: 'Failed to create visualization'
+      }
+    }));
+  } finally {
+    setCreatingChart(null);
+  }
+};
   // Handle message submission
   const handleSubmit = async () => {
     const trimmedInput = input?.trim?.() || '';
@@ -206,7 +295,7 @@ export function ChatInterface({
     
     try {
       // Execute the SQL
-      const response = await fetch('http://localhost:8000/execute_sql', {
+      const response = await fetch(API_URL + '/execute_sql', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -361,13 +450,59 @@ export function ChatInterface({
               )}
             </div>
           )}
-          
+
           {message.results && (
             <div className="mt-2">
               <QueryResultsTable 
                 columns={message.results.columns} 
                 rows={message.results.rows} 
               />
+              
+              {/* Add visualization button and chart */}
+              <div className="mt-4 space-y-4">
+                {!visualizations[message.id] && !message.results.visualization && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => createVisualization(message.id, message.results!)}
+                    disabled={creatingChart === message.id}
+                    className="gap-2"
+                  >
+                    {creatingChart === message.id ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Creating Chart...
+                      </>
+                    ) : (
+                      <>
+                        <BarChart2 className="h-4 w-4" />
+                        Create Chart
+                      </>
+                    )}
+                  </Button>
+                )}
+                
+                {(visualizations[message.id]?.visualization || message.results.visualization) && (
+                  <ChartVisualization
+                    data={message.results}
+                    chartConfig={
+                      message.results.visualization || {
+                        chartType: visualizations[message.id]?.chartType || 'bar',
+                        xAxis: visualizations[message.id]?.xAxis || '',
+                        yAxis: visualizations[message.id]?.yAxis || '',
+                        title: visualizations[message.id]?.title || '',
+                        explanation: visualizations[message.id]?.explanation || ''
+                      }
+                    }
+                  />
+                )}
+                
+                {visualizations[message.id]?.visualization === false && (
+                  <div className="text-sm text-muted-foreground">
+                    {visualizations[message.id]?.explanation || visualizations[message.id]?.error}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

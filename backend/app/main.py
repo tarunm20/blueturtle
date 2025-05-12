@@ -20,10 +20,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # Local development
-        "https://localhost:3000", # Local HTTPS
-        f"https://{os.getenv('RAILWAY_PUBLIC_DOMAIN', '')}",  # Railway domain
-        os.getenv("FRONTEND_URL", ""),  # Your frontend URL
-        "*"  # Only for development - remove in production
+        "https://blueturtle-production.up.railway.app",  # Your production frontend
+        "*"  # For testing only - remove in production
     ],
     allow_credentials=True,
     allow_methods=["*"],

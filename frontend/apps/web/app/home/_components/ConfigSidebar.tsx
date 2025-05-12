@@ -1,4 +1,5 @@
-// ConfigSidebar.tsx - Updated with Sample DB button and URI support
+// Simplified version for your ConfigSidebar.tsx
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@kit/ui/card";
 import { Button } from "@kit/ui/button";
@@ -8,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@kit/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@kit/ui/select";
 import { Checkbox } from "@kit/ui/checkbox";
 import { Label } from "@kit/ui/label";
-import { Database, AlertCircle, CheckCircle, LockKeyhole, Lock, ExternalLink } from "lucide-react";
+import { Database, AlertCircle, CheckCircle, LockKeyhole, Lock } from "lucide-react";
 import { DatabaseType, ModelType, ConnectionStatus } from "../types";
 
 interface ConfigSidebarProps {
@@ -37,8 +38,7 @@ interface ConfigSidebarProps {
   testDbConnection: () => Promise<void>;
   testModelConnection: () => Promise<void>;
   fetchingSchema: boolean;
-  connectionUri: string;
-  setConnectionUri: (uri: string) => void;
+  onSampleDbConnect?: () => void;
 }
 
 export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({ 
@@ -54,29 +54,21 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
   customModel, setCustomModel,
   dbStatus, modelStatus,
   testDbConnection, testModelConnection,
-  fetchingSchema
+  fetchingSchema,
+  onSampleDbConnect
 }) => {
-  // Add state for URI input
-  const [useConnectionUri, setUseConnectionUri] = useState<boolean>(false);
-  const [connectionUri, setConnectionUri] = useState<string>("");
-
   // Default ports for different database types
   const getDefaultPort = () => {
     switch(dbType) {
       case "postgres": return "5432";
       case "mysql": return "3306";
       case "mssql": return "1433";
-      case "sqlite": return "";
       default: return "";
     }
   };
 
   // Function to check if form is valid
   const isFormValid = () => {
-    if (useConnectionUri) {
-      return connectionUri.trim() !== "";
-    }
-    
     if (dbType === "sqlite") {
       return dbName.trim() !== "";
     }
@@ -84,86 +76,6 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
     return dbHost.trim() !== "" && 
            dbName.trim() !== "" && 
            dbUser.trim() !== "";
-  };
-
-  // Sample database connection function
-  const connectToSampleDb = () => {
-    // Set values for the sample database in Supabase
-    setUseConnectionUri(true);
-    
-    // Use a connection string with the demo credentials
-    // Format: postgres://username:password@host:port/database
-    setConnectionUri("postgresql://demo_user:demo_password@db.wpwdzcrofuexfrvqhwox.supabase.co:5432/postgres");
-    
-    // Then test the connection
-    setTimeout(testDbConnection, 100); // Small delay to ensure state updates
-  };
-
-  // Function to parse URI and set individual fields
-  const parseConnectionUri = () => {
-    if (!connectionUri) return;
-    
-    try {
-      // Parse the connection URI
-      const url = new URL(connectionUri);
-      
-      // Extract protocol (database type)
-      const protocol = url.protocol.replace(':', '');
-      if (protocol === 'postgres' || protocol === 'postgresql') {
-        setDbType('postgres');
-      } else if (protocol === 'mysql') {
-        setDbType('mysql');
-      } else if (protocol === 'mssql') {
-        setDbType('mssql');
-      } else if (protocol === 'sqlite') {
-        setDbType('sqlite');
-      }
-      
-      // Extract hostname
-      setDbHost(url.hostname);
-      
-      // Extract port
-      if (url.port) {
-        setDbPort(url.port);
-      } else {
-        setDbPort(getDefaultPort());
-      }
-      
-      // Extract database name (pathname without leading slash)
-      setDbName(url.pathname.replace(/^\//, ''));
-      
-      // Extract username and password
-      if (url.username) {
-        setDbUser(decodeURIComponent(url.username));
-      }
-      
-      if (url.password) {
-        setDbPassword(decodeURIComponent(url.password));
-      }
-      
-      // Switch to individual fields mode
-      setUseConnectionUri(false);
-    } catch (error) {
-      console.error("Error parsing connection URI:", error);
-    }
-  };
-
-  // Function to build connection URI from individual fields
-  const buildConnectionUri = () => {
-    if (dbType === "sqlite") {
-      setConnectionUri(`sqlite://${dbName}`);
-    } else {
-      const auth = dbUser ? 
-        `${encodeURIComponent(dbUser)}${dbPassword ? `:${encodeURIComponent(dbPassword)}` : ''}@` : 
-        '';
-      
-      const port = dbPort ? `:${dbPort}` : '';
-      
-      setConnectionUri(`${dbType}://${auth}${dbHost}${port}/${dbName}`);
-    }
-    
-    // Switch to URI mode
-    setUseConnectionUri(true);
   };
 
   return (
@@ -188,127 +100,100 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
           </TabsList>
           
           <TabsContent value="database" className="space-y-4 pt-4">
-            {/* Quick connect button for sample database */}
-            <Button 
-              onClick={connectToSampleDb} 
-              className="w-full mb-4 bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Database className="mr-2 h-4 w-4" />
-              Sample Database
-            </Button>
+            {/* Sample DB button - calls parent component's handler if provided */}
+          <Button 
+            onClick={() => {
+              console.log("Sample DB button clicked");
+              setDbType("postgres");
+              setDbHost("db.wpwdzcrofuexfrvqhwox.supabase.co");
+              setDbPort("5432");
+              setDbName("postgres");
+              setDbUser("postgres");
+              setDbPassword("blueturtlesample123");
+              console.log("Fields filled directly from ConfigSidebar");
+            }} 
+            className="w-full mb-4 bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Database className="mr-2 h-4 w-4" />
+            Sample Database
+          </Button>
+
             
-            {/* Toggle between connection URI and individual fields */}
-            <div className="flex items-center space-x-2 mb-4">
-              <Checkbox 
-                id="useConnectionUri" 
-                checked={useConnectionUri}
-                onCheckedChange={(checked) => {
-                  if (checked === true) {
-                    buildConnectionUri();
-                  } else if (checked === false) {
-                    parseConnectionUri();
-                  }
-                }}
-              />
-              <Label 
-                htmlFor="useConnectionUri" 
-                className="text-sm cursor-pointer"
-              >
-                Use connection URI string
-              </Label>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Database Type</label>
+              <Select value={dbType} onValueChange={(value: string) => {
+                setDbType(value as DatabaseType);
+                setDbPort(value === "sqlite" ? "" : getDefaultPort());
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select database type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="postgres">PostgreSQL</SelectItem>
+                  <SelectItem value="mysql">MySQL</SelectItem>
+                  <SelectItem value="mssql">SQL Server</SelectItem>
+                  <SelectItem value="sqlite">SQLite</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
-            {useConnectionUri ? (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Connection URI</label>
-                <Input
-                  value={connectionUri}
-                  onChange={(e) => setConnectionUri(e.target.value)}
-                  placeholder="postgres://username:password@host:port/database"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Example: postgres://user:pass@localhost:5432/mydb
-                </p>
-              </div>
-            ) : (
+            {dbType !== "sqlite" ? (
               <>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Database Type</label>
-                  <Select value={dbType} onValueChange={(value: string) => {
-                    setDbType(value as DatabaseType);
-                    setDbPort(value === "sqlite" ? "" : getDefaultPort());
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select database type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="postgres">PostgreSQL</SelectItem>
-                      <SelectItem value="mysql">MySQL</SelectItem>
-                      <SelectItem value="mssql">SQL Server</SelectItem>
-                      <SelectItem value="sqlite">SQLite</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <label className="text-sm font-medium">Host</label>
+                  <Input
+                    value={dbHost}
+                    onChange={(e) => setDbHost(e.target.value)}
+                    placeholder="localhost or IP address"
+                  />
                 </div>
                 
-                {dbType !== "sqlite" ? (
-                  <>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Host</label>
-                      <Input
-                        value={dbHost}
-                        onChange={(e) => setDbHost(e.target.value)}
-                        placeholder="localhost or IP address"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Port</label>
-                      <Input
-                        value={dbPort}
-                        onChange={(e) => setDbPort(e.target.value)}
-                        placeholder={getDefaultPort()}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Database Name</label>
-                      <Input
-                        value={dbName}
-                        onChange={(e) => setDbName(e.target.value)}
-                        placeholder="database_name"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Username</label>
-                      <Input
-                        value={dbUser}
-                        onChange={(e) => setDbUser(e.target.value)}
-                        placeholder="username"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Password</label>
-                      <Input
-                        type="password"
-                        value={dbPassword}
-                        onChange={(e) => setDbPassword(e.target.value)}
-                        placeholder="password"
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Database File Path</label>
-                    <Input
-                      value={dbName}
-                      onChange={(e) => setDbName(e.target.value)}
-                      placeholder="/path/to/database.db"
-                    />
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Port</label>
+                  <Input
+                    value={dbPort}
+                    onChange={(e) => setDbPort(e.target.value)}
+                    placeholder={getDefaultPort()}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Database Name</label>
+                  <Input
+                    value={dbName}
+                    onChange={(e) => setDbName(e.target.value)}
+                    placeholder="database_name"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Username</label>
+                  <Input
+                    value={dbUser}
+                    onChange={(e) => setDbUser(e.target.value)}
+                    placeholder="username"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Password</label>
+                  <Input
+                    type="password"
+                    value={dbPassword}
+                    onChange={(e) => setDbPassword(e.target.value)}
+                    placeholder="password"
+                  />
+                </div>
               </>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Database File Path</label>
+                <Input
+                  value={dbName}
+                  onChange={(e) => setDbName(e.target.value)}
+                  placeholder="/path/to/database.db"
+                />
+              </div>
             )}
             
             <Button 

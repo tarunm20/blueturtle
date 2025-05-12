@@ -39,7 +39,6 @@ export default function HomePage() {
   const [showMobileConfig, setShowMobileConfig] = useState<boolean>(false);
   const [showMobileSessions, setShowMobileSessions] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
-  const [connectionUri, setConnectionUri] = useState<string>("");
   
   // Sessions state
   const [sessions, setSessions] = useState<any[]>([]);
@@ -47,7 +46,7 @@ export default function HomePage() {
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const supabase = useSupabase();
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  const API_URL =  process.env.NEXT_PUBLIC_API_URL;
   
   // Mobile detection
   useEffect(() => {
@@ -175,120 +174,80 @@ export default function HomePage() {
       setSessionToDelete(null);
     }
   };
+  const fillSampleDbFields = () => {
+    console.log("Filling sample DB fields");
+    
+    // Set form fields for the sample database
+    setDbType("postgres");
+    setDbHost("db.wpwdzcrofuexfrvqhwox.supabase.co");
+    setDbPort("5432");
+    setDbName("postgres");
+    setDbUser("postgres");
+    setDbPassword("blueturtlesample123");
+    
+    // No connection test, just fill the fields
+    console.log("Sample DB fields filled");
+  };
   
   // Test database connection
   const testDbConnection = async () => {
-    // Clear any previous error
+    if (!dbName || (dbType !== "sqlite" && (!dbHost || !dbUser))) {
+      setDbStatus("error");
+      setError("Please provide all required database information");
+      return;
+    }
+    
+    setDbStatus("loading");
+    setFetchingSchema(true);
     setError(null);
     
-    // Validate input
-    if (connectionUri) {
-      // Using connection URI
-      setDbStatus("loading");
-      setFetchingSchema(true);
+    try {
+      const dbConnectionRequest = {
+        db_type: dbType,
+        db_host: dbType !== "sqlite" ? dbHost : undefined,
+        db_port: dbType !== "sqlite" && dbPort ? dbPort : undefined,
+        db_name: dbName,
+        db_user: dbType !== "sqlite" ? dbUser : undefined,
+        db_password: dbType !== "sqlite" ? dbPassword : undefined
+      };
       
-      try {
-        const dbConnectionRequest = {
-          connection_uri: connectionUri
-        };
+      // Test connection
+      const res = await fetch(API_URL + '/test_db_connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dbConnectionRequest)
+      });
+      
+      const data = await res.json();
+      
+      if (data?.success) {
+        setDbStatus("success");
         
-        // Test connection
-        const res = await fetch('http://localhost:8000/test_db_connection', {
+        // Fetch schema
+        const schemaRes = await fetch(API_URL + '/get_db_schema', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(dbConnectionRequest)
         });
         
-        const data = await res.json();
+        const schemaData = await schemaRes.json();
         
-        if (data?.success) {
-          setDbStatus("success");
-          
-          // Fetch schema
-          const schemaRes = await fetch('http://localhost:8000/get_db_schema', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dbConnectionRequest)
-          });
-          
-          const schemaData = await schemaRes.json();
-          
-          if (schemaData?.success && schemaData?.schema) {
-            setDbSchema(schemaData.schema);
-            setShowMobileConfig(false);
-          } else {
-            setError("Connected to database but failed to retrieve schema");
-          }
+        if (schemaData?.success && schemaData?.schema) {
+          setDbSchema(schemaData.schema);
+          setShowMobileConfig(false);
         } else {
-          setDbStatus("error");
-          setError(`Database connection failed: ${data?.message || 'Unknown error'}`);
+          setError("Connected to database but failed to retrieve schema");
         }
-      } catch (error) {
-        console.error("Connection test error:", error);
+      } else {
         setDbStatus("error");
-        setError("Failed to connect to database");
-      } finally {
-        setFetchingSchema(false);
+        setError(`Database connection failed: ${data?.message || 'Unknown error'}`);
       }
-    } else {
-      // Using individual fields
-      if (!dbName || (dbType !== "sqlite" && (!dbHost || !dbUser))) {
-        setDbStatus("error");
-        setError("Please provide all required database information");
-        return;
-      }
-      
-      setDbStatus("loading");
-      setFetchingSchema(true);
-      
-      try {
-        const dbConnectionRequest = {
-          db_type: dbType,
-          db_host: dbType !== "sqlite" ? dbHost : undefined,
-          db_port: dbType !== "sqlite" && dbPort ? dbPort : undefined,
-          db_name: dbName,
-          db_user: dbType !== "sqlite" ? dbUser : undefined,
-          db_password: dbType !== "sqlite" ? dbPassword : undefined
-        };
-        
-        // Test connection
-        const res = await fetch('http://localhost:8000/test_db_connection', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(dbConnectionRequest)
-        });
-        
-        const data = await res.json();
-        
-        if (data?.success) {
-          setDbStatus("success");
-          
-          // Fetch schema
-          const schemaRes = await fetch('http://localhost:8000/get_db_schema', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dbConnectionRequest)
-          });
-          
-          const schemaData = await schemaRes.json();
-          
-          if (schemaData?.success && schemaData?.schema) {
-            setDbSchema(schemaData.schema);
-            setShowMobileConfig(false);
-          } else {
-            setError("Connected to database but failed to retrieve schema");
-          }
-        } else {
-          setDbStatus("error");
-          setError(`Database connection failed: ${data?.message || 'Unknown error'}`);
-        }
-      } catch (error) {
-        console.error("Connection test error:", error);
-        setDbStatus("error");
-        setError("Failed to connect to database");
-      } finally {
-        setFetchingSchema(false);
-      }
+    } catch (error) {
+      console.error("Connection test error:", error);
+      setDbStatus("error");
+      setError("Failed to connect to database");
+    } finally {
+      setFetchingSchema(false);
     }
   };
   
@@ -306,7 +265,7 @@ export default function HomePage() {
     
     try {
       if (modelType === "ollama") {
-        const response = await fetch("http://localhost:8000/probe_llm", {
+        const response = await fetch(API_URL + "/probe_llm", {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -332,29 +291,14 @@ export default function HomePage() {
   };
   
   // Get current configs
-  const getCurrentDbConfig = () => {
-    if (connectionUri) {
-      // When using connection URI, provide default values for required fields
-      return {
-        db_type: dbType,
-        db_name: dbName || "default",
-        db_host: undefined,
-        db_port: undefined,
-        db_user: undefined,
-        db_password: undefined,
-        connection_uri: connectionUri
-      };
-    }
-    
-    return {
-      db_type: dbType,
-      db_host: dbType !== "sqlite" ? dbHost : undefined,
-      db_port: dbType !== "sqlite" && dbPort ? dbPort : undefined,
-      db_name: dbName,
-      db_user: dbType !== "sqlite" ? dbUser : undefined,
-      db_password: dbType !== "sqlite" ? dbPassword : undefined
-    };
-  };
+  const getCurrentDbConfig = () => ({
+    db_type: dbType,
+    db_host: dbType !== "sqlite" ? dbHost : undefined,
+    db_port: dbType !== "sqlite" && dbPort ? dbPort : undefined,
+    db_name: dbName,
+    db_user: dbType !== "sqlite" ? dbUser : undefined,
+    db_password: dbType !== "sqlite" ? dbPassword : undefined
+  });
   
   const getCurrentLlmConfig = () => ({
     provider: modelType,
@@ -432,8 +376,7 @@ export default function HomePage() {
                 testDbConnection={testDbConnection}
                 testModelConnection={testModelConnection}
                 fetchingSchema={fetchingSchema}
-                connectionUri={connectionUri}
-                setConnectionUri={setConnectionUri}
+                onSampleDbConnect={fillSampleDbFields}
               />
               
               {error && (
@@ -445,9 +388,9 @@ export default function HomePage() {
               )}
               
               {dbStatus === "success" && (
-                <Alert variant="default" className="mt-4 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-                  <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" />
-                  <AlertTitle className="text-green-800 dark:text-green-100">Database Connected</AlertTitle>
+                <Alert variant="default" className="mt-4 bg-green-50 dark:bg-green-900/20">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <AlertTitle>Database Connected</AlertTitle>
                 </Alert>
               )}
             </div>
@@ -547,8 +490,6 @@ export default function HomePage() {
                 testDbConnection={testDbConnection}
                 testModelConnection={testModelConnection}
                 fetchingSchema={fetchingSchema}
-                connectionUri={connectionUri}
-                setConnectionUri={setConnectionUri}
               />
               
               {error && (
@@ -560,16 +501,16 @@ export default function HomePage() {
               )}
               
               {dbStatus === "success" && (
-                <Alert variant="default" className="mt-4 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-                  <CheckCircle className="h-4 w-4 text-green-500 dark:text-green-400" />
-                  <AlertTitle className="text-green-800 dark:text-green-100">Database Connected</AlertTitle>
+                <Alert variant="default" className="mt-4 bg-green-50 dark:bg-green-900/20">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <AlertTitle>Database Connected</AlertTitle>
                 </Alert>
               )}
               
               {modelStatus === "success" && (
-                <Alert variant="default" className="mt-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-                  <CheckCircle className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-                  <AlertTitle className="text-blue-800 dark:text-blue-100">Model Connected</AlertTitle>
+                <Alert variant="default" className="mt-4 bg-blue-50 dark:bg-blue-900/20">
+                  <CheckCircle className="h-4 w-4 text-blue-500" />
+                  <AlertTitle>Model Connected</AlertTitle>
                 </Alert>
               )}
             </div>

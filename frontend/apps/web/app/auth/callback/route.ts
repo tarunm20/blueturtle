@@ -1,3 +1,5 @@
+// frontend/apps/web/app/auth/callback/route.ts
+
 import { redirect } from 'next/navigation';
 import type { NextRequest } from 'next/server';
 
@@ -9,7 +11,8 @@ import pathsConfig from '~/config/paths.config';
 export async function GET(request: NextRequest) {
   const service = createAuthCallbackService(getSupabaseServerClient());
 
-  const { nextPath } = await service.exchangeCodeForSession(request, {
+  // Exchange the code for a session
+  await service.exchangeCodeForSession(request, {
     redirectPath: pathsConfig.app.home,
   });
 

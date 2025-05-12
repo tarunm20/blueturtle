@@ -13,5 +13,5 @@ export async function GET(request: NextRequest) {
     redirectPath: pathsConfig.app.home,
   });
 
-  return redirect(nextPath);
+  return redirect(pathsConfig.app.home);
 }

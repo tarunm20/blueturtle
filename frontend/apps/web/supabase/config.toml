@@ -71,6 +71,11 @@ redirect_uri = ""
 # or any other third-party OIDC providers.
 url = ""
 
+[auth.external.github]
+enabled = true
+client_id = "Ov23litTnmn5Di3Huuwc"
+secret = "01c1ee5170461d7dd7f1b2f7c134b47c3d189149"
+
 [auth.email.template.invite]
 subject = "You are invited to Makerkit"
 content_path = "./supabase/templates/invite-user.html"

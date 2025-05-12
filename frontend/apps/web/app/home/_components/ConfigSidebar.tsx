@@ -105,10 +105,10 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
             onClick={() => {
               console.log("Sample DB button clicked");
               setDbType("postgres");
-              setDbHost("db.wpwdzcrofuexfrvqhwox.supabase.co");
-              setDbPort("5432");
+              setDbHost("aws-0-us-east-2.pooler.supabase.com");
+              setDbPort("6543");
               setDbName("postgres");
-              setDbUser("postgres");
+              setDbUser("postgres.wpwdzcrofuexfrvqhwox");
               setDbPassword("blueturtlesample123");
               console.log("Fields filled directly from ConfigSidebar");
             }} 

@@ -9,10 +9,12 @@ import { SiteNavigation } from './site-navigation';
 
 export function SiteHeader(props: { user?: User | null }) {
   return (
-    <Header
-      logo={<AppLogo />}
-      navigation={<SiteNavigation />}
-      actions={<SiteHeaderAccountSection user={props.user ?? null} />}
-    />
+    <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b shadow-sm">
+      <Header
+        logo={<AppLogo />}
+        navigation={<SiteNavigation />}
+        actions={<SiteHeaderAccountSection user={props.user ?? null} />}
+      />
+    </div>
   );
 }

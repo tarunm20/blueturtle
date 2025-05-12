@@ -47,5 +47,8 @@
     "prettier": "^3.5.1",
     "turbo": "2.4.2",
     "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "framer-motion": "^12.10.5"
   }
 }

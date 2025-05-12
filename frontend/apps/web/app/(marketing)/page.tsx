@@ -3,12 +3,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { 
-  ArrowRightIcon, 
+  ArrowRight, 
   MessageCircle, 
   Database, 
   BarChart4, 
   Zap,
-  Quote
+  CheckCircle
 } from 'lucide-react';
 
 import {
@@ -22,36 +22,38 @@ import {
 } from '@kit/ui/marketing';
 import { Trans } from '@kit/ui/trans';
 import { Badge } from '@kit/ui/badge';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@kit/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@kit/ui/card';
 import { Button } from '@kit/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@kit/ui/avatar';
 
 import { withI18n } from '~/lib/i18n/with-i18n';
 
 function Home() {
   return (
     <div className="flex flex-col">
-      {/* Hero Section with turtle-inspired gradient and shapes */}
+      {/* Hero Section with simplified animations */}
       <div className="relative bg-gradient-to-b from-blue-50 to-transparent dark:from-blue-950/20 dark:to-background pt-16 pb-24 overflow-hidden">
-        {/* Turtle shell-inspired decorative elements */}
-        <div className="absolute -top-10 right-0 w-64 h-64 rounded-full border-8 border-blue-200/30 dark:border-blue-600/10 -rotate-12"></div>
-        <div className="absolute -top-4 right-10 w-48 h-48 rounded-full border-8 border-blue-200/30 dark:border-blue-600/10 -rotate-12"></div>
+        {/* Decorative elements with native Tailwind animations */}
+        <div className="absolute -top-10 right-0 w-64 h-64 rounded-full border-8 border-blue-200/30 dark:border-blue-600/10 animate-pulse"></div>
+        <div className="absolute top-40 left-10 w-20 h-20 rounded-full bg-blue-100/20 dark:bg-blue-800/10 animate-pulse"></div>
         
-        {/* Subtle wave pattern at bottom suggesting water */}
-        <div className="absolute bottom-0 left-0 w-full h-16 bg-blue-100/30 dark:bg-blue-900/10 
-                       [mask-image:linear-gradient(to_bottom,transparent,black)]">
-          <svg viewBox="0 0 1200 100" className="w-full h-full">
+        {/* Additional animated elements */}
+        <div className="absolute bottom-60 right-20 w-16 h-16 rounded-full bg-blue-200/20 dark:bg-blue-700/10 animate-ping"></div>
+        <div className="absolute top-80 left-1/4 w-10 h-10 rounded-full bg-blue-300/20 dark:bg-blue-600/10 animate-bounce"></div>
+        
+        {/* Subtle wave pattern at bottom */}
+        <div className="absolute bottom-0 left-0 w-full h-8 overflow-hidden">
+          <svg viewBox="0 0 1200 120" className="absolute w-full h-full">
             <path 
-              d="M0,50 C300,0 600,100 900,50 C1200,0 1500,50 1800,50 L1800,100 L0,100 Z" 
-              className="fill-blue-200/40 dark:fill-blue-800/20" />
+              d="M0,60 C300,30 600,90 900,60 C1200,30 1500,60 1800,60 L1800,120 L0,120 Z" 
+              className="fill-blue-100/30 dark:fill-blue-800/20" />
           </svg>
         </div>
         
         <div className="container mx-auto relative z-10">
           <Hero
             pill={
-              <Pill label={'New'}>
-                <span>Your data speaks English now</span>
+              <Pill label={'NEW'}>
+                <span>Chat with your data in plain English</span>
               </Pill>
             }
             title={
@@ -65,19 +67,24 @@ function Home() {
               <span>
                 From questions to insights in seconds. Connect your database, 
                 chat in plain English, and get instant answers with visual results.
-                No SQL required.
               </span>
             }
             cta={<MainCallToActionButton />}
             image={
-              <div className="relative rounded-xl overflow-hidden shadow-2xl border border-blue-200 dark:border-blue-800">
+              <div className="relative rounded-xl overflow-hidden shadow-lg border border-blue-200 dark:border-blue-800 transition-all hover:shadow-xl">
+                {/* Add a subtle hover effect to the image */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-700 z-10"></div>
+                
+                {/* Add animated cursor dot that blinks occasionally */}
+                <div className="absolute top-[45%] left-[20%] w-3 h-3 bg-blue-500 rounded-full z-20 animate-ping"></div>
+                
                 <Image
                   priority
                   width={1200}
                   height={800}
                   src={`/images/dashboard.webp`}
                   alt={`Chat interface showing natural language queries being converted to SQL and data visualizations`}
-                  className="rounded-lg"
+                  className="rounded-lg transform transition duration-700 hover:scale-105"
                 />
               </div>
             }
@@ -86,17 +93,8 @@ function Home() {
       </div>
 
       {/* How It Works Section */}
-      <div className="bg-blue-50 dark:bg-blue-950/10 py-24 relative overflow-hidden">
-        {/* Turtle shell pattern background */}
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-1/4 left-1/4 w-32 h-32 rounded-full border-4 border-blue-500"></div>
-          <div className="absolute top-1/4 right-1/4 w-32 h-32 rounded-full border-4 border-blue-500"></div>
-          <div className="absolute bottom-1/4 left-1/3 w-32 h-32 rounded-full border-4 border-blue-500"></div>
-          <div className="absolute bottom-1/4 right-1/3 w-32 h-32 rounded-full border-4 border-blue-500"></div>
-          <div className="absolute top-1/2 left-1/2 w-32 h-32 rounded-full border-4 border-blue-500 -translate-x-1/2 -translate-y-1/2"></div>
-        </div>
-        
-        <div className="container mx-auto relative z-10">
+      <div className="bg-blue-50 dark:bg-blue-950/10 py-20 relative">
+        <div className="container mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-heading font-bold mb-4">How It Works</h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
@@ -107,24 +105,25 @@ function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               {
+                icon: <Database className="h-10 w-10" />,
                 title: "Connect",
                 description: "Securely connect to your database in seconds. Works with PostgreSQL, MySQL, SQL Server, and more."
               },
               {
+                icon: <MessageCircle className="h-10 w-10" />,
                 title: "Ask",
                 description: "Simply type your question in plain English. No SQL knowledge required - just ask what you want to know."
               },
               {
+                icon: <BarChart4 className="h-10 w-10" />,
                 title: "Analyze",
                 description: "Get instant results with beautiful visualizations and actionable insights you can share with your team."
               }
             ].map((step, i) => (
-              <Card key={i} className="text-center bg-white dark:bg-gray-900 hover:shadow-lg transition-shadow border-blue-100 dark:border-blue-900">
+              <Card key={i} className="text-center bg-white dark:bg-gray-900 border-blue-100 dark:border-blue-900 hover:shadow-md transition-shadow hover:translate-y-[-4px] transition-transform duration-300">
                 <CardHeader>
                   <div className="mx-auto bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 p-4 rounded-full mb-4">
-                    {i === 0 ? <Database className="h-10 w-10" /> : 
-                     i === 1 ? <MessageCircle className="h-10 w-10" /> : 
-                     <BarChart4 className="h-10 w-10" />}
+                    {step.icon}
                   </div>
                   <CardTitle className="text-xl">
                     {step.title}
@@ -142,19 +141,7 @@ function Home() {
       </div>
 
       {/* Features Section */}
-      <div className="container mx-auto py-24 relative">
-        {/* Subtle turtle silhouette for background */}
-        <div className="absolute right-0 bottom-0 opacity-5 w-64 h-64">
-          <svg viewBox="0 0 100 100" className="w-full h-full">
-            <path d="M50,10 C70,10 85,25 85,45 C85,65 70,80 50,80 C30,80 15,65 15,45 C15,25 30,10 50,10 Z" className="fill-blue-500" />
-            <path d="M30,45 C30,38 36,32 44,32 C52,32 58,38 58,45 C58,52 52,58 44,58 C36,58 30,52 30,45 Z" className="fill-white" />
-            <path d="M44,82 L44,100" className="stroke-blue-500 stroke-2" />
-            <path d="M56,82 L56,100" className="stroke-blue-500 stroke-2" />
-            <path d="M30,70 L10,90" className="stroke-blue-500 stroke-2" />
-            <path d="M70,70 L90,90" className="stroke-blue-500 stroke-2" />
-          </svg>
-        </div>
-        
+      <div className="container mx-auto py-20 relative">
         <FeatureShowcase
           heading={
             <>
@@ -176,136 +163,79 @@ function Home() {
         >
           <FeatureGrid>
             <FeatureCard
-              className={'relative col-span-2 overflow-hidden border-blue-100 dark:border-blue-900'}
-              label={'Natural Language Interface'}
-              description={`Ask complex questions in plain English and get instant answers. Our AI translates your questions into optimized SQL.`}
+              className='col-span-2 overflow-hidden border-blue-100 dark:border-blue-900 hover:shadow-md transition-all hover:translate-y-[-4px] duration-300'
+              label='Natural Language Interface'
+              description='Ask complex questions in plain English and get instant answers. Our AI translates your questions into optimized SQL.'
             />
 
             <FeatureCard
-              className={'relative col-span-2 w-full overflow-hidden lg:col-span-1 border-blue-100 dark:border-blue-900'}
-              label={'Instant Results'}
-              description={`No more waiting for the data team. Get answers in seconds, not days.`}
+              className='col-span-2 w-full overflow-hidden lg:col-span-1 border-blue-100 dark:border-blue-900 hover:shadow-md transition-all hover:translate-y-[-4px] duration-300'
+              label='Instant Results'
+              description='No more waiting for the data team. Get answers in seconds, not days.'
             />
 
             <FeatureCard
-              className={'relative col-span-2 overflow-hidden lg:col-span-1 border-blue-100 dark:border-blue-900'}
-              label={'Visual Analytics'}
-              description={`Automatic charts and visualizations that make your data easy to understand.`}
+              className='col-span-2 overflow-hidden lg:col-span-1 border-blue-100 dark:border-blue-900 hover:shadow-md transition-all hover:translate-y-[-4px] duration-300'
+              label='Visual Analytics'
+              description='Automatic charts and visualizations that make your data easy to understand.'
             />
 
             <FeatureCard
-              className={'relative col-span-2 overflow-hidden border-blue-100 dark:border-blue-900'}
-              label={'Secure Connections'}
-              description={`Enterprise-grade security for your database connections. Your data never leaves your infrastructure.`}
+              className='col-span-2 overflow-hidden border-blue-100 dark:border-blue-900 hover:shadow-md transition-all hover:translate-y-[-4px] duration-300'
+              label='Secure Connections'
+              description='Enterprise-grade security for your database connections. Your data never leaves your infrastructure.'
             />
           </FeatureGrid>
         </FeatureShowcase>
       </div>
 
-      {/* Use Cases Section */}
-      <div className="bg-blue-50 dark:bg-blue-950/10 py-24 relative overflow-hidden">
-        {/* Wave pattern suggesting water and turtle habitat */}
-        <div className="absolute top-0 left-0 w-full h-12">
-          <svg viewBox="0 0 1200 100" className="w-full h-full rotate-180">
-            <path 
-              d="M0,50 C300,0 600,100 900,50 C1200,0 1500,50 1800,50 L1800,100 L0,100 Z" 
-              className="fill-blue-100/50 dark:fill-blue-900/20" />
-          </svg>
-        </div>
-        
-        <div className="container mx-auto relative z-10">
+      {/* Benefits Section */}
+      <div className="bg-gradient-to-br from-blue-50 to-transparent dark:from-blue-950/20 dark:to-background py-20">
+        <div className="container mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-heading font-bold mb-4">For Every Team Member</h2>
+            <h2 className="text-3xl font-heading font-bold mb-4">Why Choose BlueTurtle?</h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Everyone deserves access to data insights, not just engineers
+              Transform how your team works with data
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               {
-                role: "Marketing",
-                question: "How did our last campaign perform?",
-                benefit: "Track conversion rates and ROI without waiting for reports"
+                title: "No SQL Knowledge Required",
+                description: "Ask questions in plain English and get insights immediately"
               },
               {
-                role: "Sales",
-                question: "Who are our highest-value prospects?",
-                benefit: "Identify opportunities based on real-time data"
+                title: "10x Faster Insights",
+                description: "Get answers in seconds instead of waiting days for reports"
               },
               {
-                role: "Product",
-                question: "Which features get the most usage?",
-                benefit: "Make decisions based on actual user behavior"
+                title: "Beautiful Visualizations",
+                description: "Automatically generate the right charts for your data"
               },
               {
-                role: "Executive",
-                question: "How is revenue trending this quarter?",
-                benefit: "Get instant insights for strategic decisions"
+                title: "Enterprise Security",
+                description: "Your data stays within your infrastructure at all times"
+              },
+              {
+                title: "Seamless Integration",
+                description: "Works with all major databases without any configuration"
+              },
+              {
+                title: "Empower Every Team",
+                description: "From marketing to finance, everyone can access data insights"
               }
-            ].map((useCase, i) => (
-              <Card key={i} className="overflow-hidden border-2 border-blue-200 dark:border-blue-800 bg-white dark:bg-gray-900">
-                <CardHeader className="bg-blue-100 dark:bg-blue-900/50 pb-2">
-                  <Badge variant="outline" className="mb-2 w-fit bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-700">
-                    {useCase.role}
-                  </Badge>
-                  <CardTitle className="text-lg">
-                    "{useCase.question}"
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  <p className="text-muted-foreground">
-                    {useCase.benefit}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Roadmap section - New section with turtle theme */}
-      <div className="container mx-auto py-24">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-heading font-bold mb-4">BlueTurtle Roadmap</h2>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Our journey to revolutionize how teams work with data
-          </p>
-        </div>
-        
-        <div className="max-w-4xl mx-auto">
-          <div className="relative">
-            {/* Turtle shell pattern as timeline */}
-            <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-blue-200 dark:bg-blue-800 -translate-x-1/2"></div>
-            
-            {/* Timeline nodes */}
-            {[
-              {
-                title: "Advanced Data Visualization",
-                date: "Q2 2025",
-                description: "Customizable visualization templates and more chart types for deeper data exploration"
-              },
-              {
-                title: "Cross-Database Queries",
-                date: "Q3 2025",
-                description: "Ask questions that span multiple databases with intelligent data joining"
-              },
-              {
-                title: "Predictive Analytics",
-                date: "Q4 2025",
-                description: "Ask forward-looking questions about your data with AI-powered forecasting"
-              }
-            ].map((milestone, i) => (
-              <div key={i} className={`flex items-start mb-16 ${i % 2 === 0 ? 'flex-row-reverse' : ''}`}>
-                <div className={`w-1/2 ${i % 2 === 0 ? 'pr-12 text-right' : 'pl-12'}`}>
-                  <Badge className="inline-block mb-2 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-700">
-                    {milestone.date}
-                  </Badge>
-                  <h3 className="text-xl font-bold mb-2">{milestone.title}</h3>
-                  <p className="text-muted-foreground">{milestone.description}</p>
+            ].map((benefit, i) => (
+              <div key={i} className="bg-white dark:bg-gray-900 border border-blue-100 dark:border-blue-900 p-6 rounded-lg hover:shadow-md transition-all hover:translate-y-[-4px] duration-300">
+                <div className="flex items-start gap-3">
+                  <div className="mt-1 text-blue-500">
+                    <CheckCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-lg mb-2">{benefit.title}</h3>
+                    <p className="text-muted-foreground">{benefit.description}</p>
+                  </div>
                 </div>
-                
-                <div className="absolute left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-blue-500 border-4 border-white dark:border-gray-900 z-10"></div>
               </div>
             ))}
           </div>
@@ -313,16 +243,8 @@ function Home() {
       </div>
 
       {/* CTA Section */}
-      <div className="bg-gradient-to-b from-blue-50 to-transparent dark:from-blue-950/20 dark:to-background py-16 relative overflow-hidden">
-        {/* Turtle swimming illustration at the bottom */}
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-32 h-8">
-          <svg viewBox="0 0 100 20" className="w-full h-full">
-            <path d="M50,0 C60,0 70,5 70,10 C70,15 60,20 50,20 C40,20 30,15 30,10 C30,5 40,0 50,0 Z" className="fill-blue-300/30 dark:fill-blue-700/20" />
-            <path d="M35,10 C35,8 40,6 50,6 C60,6 65,8 65,10 C65,12 60,14 50,14 C40,14 35,12 35,10 Z" className="fill-blue-200/30 dark:fill-blue-800/20" />
-            <path d="M20,10 L30,10" className="stroke-blue-300/30 dark:stroke-blue-700/20 stroke-2" />
-            <path d="M70,10 L80,10" className="stroke-blue-300/30 dark:stroke-blue-700/20 stroke-2" />
-          </svg>
-        </div>
+      <div className="py-16 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-950/10 dark:to-transparent z-0"></div>
         
         <div className="container mx-auto text-center relative z-10">
           <h2 className="text-3xl font-heading font-bold mb-4 text-blue-600 dark:text-blue-400">
@@ -333,13 +255,13 @@ function Home() {
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button asChild size="lg" variant="default" className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700">
+            <Button asChild size="lg" variant="default" className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 gap-2 transition-transform hover:translate-y-[-4px] duration-300">
               <Link href="/auth/sign-up">
                 Try Free Demo
-                <ArrowRightIcon className="ml-2 h-4 w-4" />
+                <ArrowRight className="h-4 w-4 ml-2" />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="border-blue-300 dark:border-blue-700">
+            <Button asChild size="lg" variant="outline" className="border-blue-300 dark:border-blue-700 transition-transform hover:translate-y-[-4px] duration-300">
               <Link href="/contact">
                 Schedule Demo
               </Link>
@@ -356,26 +278,12 @@ function Home() {
 
 function MainCallToActionButton() {
   return (
-    <div className={'flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4'}>
-      <CtaButton className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700">
-        <Link href={'/auth/sign-up'}>
-          <span className={'flex items-center space-x-0.5'}>
+    <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+      <CtaButton className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 transition-transform hover:translate-y-[-4px] duration-300">
+        <Link href="/auth/sign-up">
+          <span className="flex items-center space-x-0.5">
             <span>Try Free Demo</span>
-            <ArrowRightIcon
-              className={
-                'animate-in fade-in slide-in-from-left-8 h-4' +
-                ' zoom-in fill-mode-both delay-1000 duration-1000 ml-2'
-              }
-            />
-          </span>
-        </Link>
-      </CtaButton>
-
-      <CtaButton variant={'outline'} className="border-blue-300 dark:border-blue-700">
-        <Link href={'/chat'}>
-          <span className="flex items-center">
-            <MessageCircle className="mr-2 h-4 w-4" />
-            See It In Action
+            <ArrowRight className="h-4 w-4 ml-2 animate-pulse" />
           </span>
         </Link>
       </CtaButton>

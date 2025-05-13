@@ -11,16 +11,16 @@ import {
   } from "@kit/ui/alert-dialog";
   
   interface ConfirmDialogProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onConfirm: () => void;
-    title: string;
-    description: string;
-    confirmLabel?: string;
-    cancelLabel?: string;
-    variant?: 'default' | 'destructive';
-  }
-  
+      isOpen: boolean;
+      onClose: () => void;
+      onConfirm: () => void;
+      title: string;
+      description: string | React.ReactNode;
+      confirmLabel?: string;
+      cancelLabel?: string;
+      variant?: 'default' | 'destructive';
+    }
+    
   export function ConfirmDialog({
     isOpen,
     onClose,

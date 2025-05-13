@@ -2,10 +2,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { Button } from '@kit/ui/button';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, Trash2, Pencil } from 'lucide-react';
 import { useSupabase } from '@kit/supabase/hooks/use-supabase';
 import { ChatInterface } from './ChatInterface';
 import { DatabaseType, ModelType } from './types';
+import { ConfirmDialog } from './_components/ConfirmDialog';
 
 interface ChatSession {
   id: string;
@@ -36,6 +37,14 @@ export function ChatSessionManager({ dbConfig, llmConfig }: ChatSessionManagerPr
   const [activeSessionId, setActiveSessionId] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  
+  // Session ID to delete
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+  
+  // Rename session dialog state
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [sessionToRename, setSessionToRename] = useState<string | null>(null);
+  const [newSessionName, setNewSessionName] = useState('');
 
   // Load chat sessions from Supabase
   const loadSessions = async () => {
@@ -111,6 +120,52 @@ export function ChatSessionManager({ dbConfig, llmConfig }: ChatSessionManagerPr
       }
     } catch (err) {
       console.error('Error in createSession:', err);
+    }
+  };
+
+  // Open rename dialog for a session
+  const openRenameDialog = (sessionId: string, currentName: string) => {
+    setSessionToRename(sessionId);
+    setNewSessionName(currentName);
+    setRenameDialogOpen(true);
+  };
+
+  // Close rename dialog
+  const closeRenameDialog = () => {
+    setRenameDialogOpen(false);
+    setSessionToRename(null);
+    setNewSessionName('');
+  };
+
+  // Handle rename session from dialog
+  const handleRenameSession = async () => {
+    if (!sessionToRename || !newSessionName.trim()) {
+      closeRenameDialog();
+      return;
+    }
+    
+    try {
+      await supabase
+        .from('chat_sessions')
+        .update({ 
+          title: newSessionName.trim(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', sessionToRename);
+      
+      // Update local state
+      setSessions(prev => 
+        prev.map(session => 
+          session.id === sessionToRename
+            ? { ...session, title: newSessionName.trim() }
+            : session
+        )
+      );
+      
+      closeRenameDialog();
+    } catch (err) {
+      console.error('Error renaming session:', err);
+      closeRenameDialog();
     }
   };
 
@@ -210,6 +265,7 @@ export function ChatSessionManager({ dbConfig, llmConfig }: ChatSessionManagerPr
       console.error('Error in handleDeleteSession:', err);
     } finally {
       setIsDeleting(false);
+      setSessionToDelete(null);
     }
   };
 
@@ -249,19 +305,36 @@ export function ChatSessionManager({ dbConfig, llmConfig }: ChatSessionManagerPr
               >
                 <div className="truncate">{session?.title || 'Untitled'}</div>
                 
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleDeleteSession(session?.id || '');
-                  }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity"
-                  disabled={sessions?.length <= 1 || isDeleting}
-                >
-                  <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                </Button>
+                <div className="flex items-center">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      openRenameDialog(session?.id || '', session?.title || 'Untitled');
+                    }}
+                    className="h-7 w-7 p-0 mr-1"
+                    title="Rename"
+                  >
+                    <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                  </Button>
+                  
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSessionToDelete(session?.id || '');
+                    }}
+                    className="h-7 w-7 p-0"
+                    disabled={sessions?.length <= 1 || isDeleting}
+                    title="Delete"
+                  >
+                    <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                  </Button>
+                </div>
               </div>
             ))
           )}
@@ -282,6 +355,45 @@ export function ChatSessionManager({ dbConfig, llmConfig }: ChatSessionManagerPr
           </div>
         )}
       </div>
+
+      {/* Rename Dialog */}
+      {renameDialogOpen && (
+        <ConfirmDialog
+          isOpen={renameDialogOpen}
+          onClose={closeRenameDialog}
+          onConfirm={handleRenameSession}
+          title="Rename Chat"
+          description={
+            <>
+              Enter a new name for this chat:
+              <input
+                type="text"
+                value={newSessionName}
+                onChange={(e) => setNewSessionName(e.target.value)}
+                className="w-full px-3 py-2 border rounded mt-2"
+                autoFocus
+              />
+            </>
+          }
+          confirmLabel="Save"
+          cancelLabel="Cancel"
+          variant="default"
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {sessionToDelete && (
+        <ConfirmDialog
+          isOpen={true}
+          onClose={() => setSessionToDelete(null)}
+          onConfirm={() => handleDeleteSession(sessionToDelete)}
+          title="Delete Chat"
+          description="Are you sure you want to delete this chat? This action cannot be undone."
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          variant="destructive"
+        />
+      )}
     </div>
   );
 }

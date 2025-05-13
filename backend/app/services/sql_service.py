@@ -9,12 +9,12 @@ def get_schema(db_config: dict) -> tuple:
     start_time = time.time()
     
     try:
-        schema_str, schema_dict = get_db_schema(db_config)
+        schema_str, schema_dict, table_counts = get_db_schema(db_config)
         
         process_time = time.time() - start_time
         print(f"{C.SQL}[SQL]{C.RESET} Schema processed in {process_time:.2f}s")
         
-        return schema_str, schema_dict
+        return schema_str, schema_dict, table_counts
         
     except Exception as e:
         print(f"{C.ERROR}[ERROR]{C.RESET} Database schema error: {str(e)}")

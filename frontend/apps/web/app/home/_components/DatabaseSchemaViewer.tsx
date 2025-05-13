@@ -103,7 +103,9 @@ export const DatabaseSchemaViewer: React.FC<DatabaseSchemaViewerProps> = ({
       {!isMinimized && (
         <CardContent className="p-2">
           <div className="relative mb-2">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="absolute left-2 top-0 h-full flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-muted-foreground" />
+            </div>
             <Input
               placeholder="Search tables..."
               value={searchTerm}

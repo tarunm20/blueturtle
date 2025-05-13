@@ -235,26 +235,10 @@ export default function HomePage() {
         
         if (schemaData?.success && schemaData?.schema) {
           setDbSchema(schemaData.schema);
-          
-          // If table count info is available in response, use it
-          if (schemaData?.tableCounts) {
-            setTableCounts(schemaData.tableCounts);
-          } else {
-            // Otherwise, fetch counts for each table
-            const counts: Record<string, number> = {};
-            
-            // For demo purposes, we'll generate random counts
-            // In a real app, you would make API calls to get the actual counts
-            for (const tableName of Object.keys(schemaData.schema)) {
-              counts[tableName] = Math.floor(Math.random() * 10000) + 1;
-            }
-            
-            setTableCounts(counts);
-          }
-          
           setShowMobileConfig(false);
         } else {
-          setError("Connected to database but failed to retrieve schema");
+          setError("Connected to database but failed to retrieve schema: " + 
+                  (schemaData?.message || "Unknown error"));
         }
       } else {
         setDbStatus("error");
@@ -263,11 +247,12 @@ export default function HomePage() {
     } catch (error) {
       console.error("Connection test error:", error);
       setDbStatus("error");
-      setError("Failed to connect to database");
+      setError("Failed to connect to database: " + (error instanceof Error ? error.message : String(error)));
     } finally {
       setFetchingSchema(false);
     }
   };
+
   
   // Test model connection
   const testModelConnection = async () => {
@@ -617,7 +602,6 @@ export default function HomePage() {
                     schema={dbSchema} 
                     isMinimized={isSchemaMinimized}
                     toggleMinimize={() => setIsSchemaMinimized(!isSchemaMinimized)}
-                    tableCounts={tableCounts}
                   />
                 ) : null}
               </div>

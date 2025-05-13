@@ -42,11 +42,52 @@ Return the SQL query as a JSON object with a "query" field:
 """
 
 def build_visualization_prompt(user_question: str, columns: list, rows: list) -> str:
-    """Build a prompt to get visualization recommendations for query results"""
+    """Build a prompt to get visualization recommendations for query results with better pie chart support"""
     
     # Format sample rows for readability
     sample_rows = rows[:5] if len(rows) > 5 else rows
     sample_data = "\n".join([str(row) for row in sample_rows])
+    
+    # Count number of unique values in each column to identify potential categorical columns
+    column_stats = {}
+    for i, col in enumerate(columns):
+        if not rows:
+            column_stats[col] = {"unique_count": 0, "is_numeric": False}
+            continue
+            
+        # Check if column contains numeric values
+        is_numeric = True
+        unique_values = set()
+        
+        for row in rows:
+            if i >= len(row):
+                continue
+                
+            val = row[i]
+            
+            # Skip None values
+            if val is None:
+                continue
+                
+            # Try to convert to float to check if numeric
+            try:
+                float(val)
+            except (ValueError, TypeError):
+                is_numeric = False
+                
+            # Add to unique values
+            unique_values.add(str(val))
+        
+        column_stats[col] = {
+            "unique_count": len(unique_values),
+            "is_numeric": is_numeric
+        }
+    
+    # Add column stats to the prompt
+    column_info = "\n".join([
+        f"Column '{col}': {stats['unique_count']} unique values, {'numeric' if stats['is_numeric'] else 'non-numeric'}"
+        for col, stats in column_stats.items()
+    ])
     
     return f"""
 I executed a SQL query for the question: "{user_question}"
@@ -56,7 +97,16 @@ Columns: {columns}
 Sample data: 
 {sample_data}
 
-Analyze this data and recommend the best visualization type.
+Column statistics:
+{column_info}
+
+Total rows: {len(rows)}
+
+Analyze this data and recommend the best visualization type. Consider these guidelines:
+1. For comparisons between categories, use bar charts
+2. For time series or trend data, use line charts
+3. For proportions of a whole, use pie charts (but only if there are fewer than 8 categories)
+4. For pie charts, you need one categorical column with distinct values (for labels) and one numeric column (for values)
 
 Return response as JSON:
 {{
@@ -67,6 +117,8 @@ Return response as JSON:
   "title": "Chart title",
   "explanation": "Brief explanation"
 }}
+
+If the data is not suitable for visualization, set "visualization": false and explain why.
 """
 
 def build_llm_prompt_for_regeneration(user_prompt: str, schema: str, message_history, failed_sql: str, error_message: str) -> str:

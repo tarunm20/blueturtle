@@ -153,6 +153,8 @@ async def test_db_connection(request: Request, db_config: DbConnectionInput):
         print(f"[ERROR:{request_id}] Connection test error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# app/api/sql.py - Updated get_db_schema_endpoint function
+
 @router.post("/get_db_schema")
 async def get_db_schema_endpoint(request: Request, db_config: DbConnectionInput):
     """Get the database schema in a structured format"""
@@ -164,13 +166,17 @@ async def get_db_schema_endpoint(request: Request, db_config: DbConnectionInput)
         # Convert to dict for compatibility with existing functions
         config_dict = db_config.dict(exclude_none=True)
         
-        # Get the schema
-        _, schema_dict = sql_service.get_schema(config_dict)
+        # Get the schema with the updated function that returns table counts
+        schema_str, schema_dict, table_counts = sql_service.get_schema(config_dict)
         
         process_time = time.time() - start_time
         print(f"[API:{request_id}] Schema processed in {process_time:.2f}s")
         
-        return {"success": True, "schema": schema_dict}
+        return {
+            "success": True, 
+            "schema": schema_dict,
+            "tableCounts": table_counts
+        }
     except Exception as e:
         process_time = time.time() - start_time
         print(f"[ERROR:{request_id}] Schema processing failed after {process_time:.2f}s: {str(e)}")
@@ -178,7 +184,7 @@ async def get_db_schema_endpoint(request: Request, db_config: DbConnectionInput)
     
 @router.post("/recommend_visualization")
 async def recommend_visualization(request: Request, req: dict):
-    """Recommend visualization for query results"""
+    """Recommend visualization for query results with improved column selection"""
     request_id = str(uuid.uuid4())[:8]
     print(f"[API:{request_id}] Visualization recommendation request")
     
@@ -198,9 +204,9 @@ async def recommend_visualization(request: Request, req: dict):
         prompt = build_visualization_prompt(user_question, columns, rows)
         
         # Send to LLM service
-        provider = llm_config.get("provider", "ollama")
-        model = llm_config.get("model", "llama3.2")
-        url = llm_config.get("url", "http://localhost:11434/api/generate")
+        provider = llm_config.get("provider", "bedrock")
+        model = llm_config.get("model", "anthropic.claude-3-7-sonnet-20250219-v1:0")
+        url = llm_config.get("url", "")
         
         print(f"[API:{request_id}] Sending visualization recommendation request to LLM")
         
@@ -234,34 +240,91 @@ async def recommend_visualization(request: Request, req: dict):
                 print(f"[API:{request_id}] Failed to extract JSON with regex")
                 recommendation = {"visualization": False, "explanation": "Failed to extract recommendation"}
         
-        # Fallback detection logic - if LLM says no visualization but we have appropriate data
-        if not recommendation.get("visualization", False):
-            # Check if we have at least one numeric column
-            numeric_columns = []
-            string_columns = []
+        # Additional validation for ID columns
+        if recommendation.get("visualization", False):
+            print(f"[API:{request_id}] Validating column selections")
             
-            # Simple type detection based on first row
-            if rows and len(rows) > 0:
-                for i, col in enumerate(columns):
-                    # Check if we can convert the value to a float
-                    try:
-                        if rows[0][i] is not None:
-                            float(rows[0][i])
-                            numeric_columns.append(col)
-                    except (ValueError, TypeError):
-                        string_columns.append(col)
+            y_axis = recommendation.get("yAxis", "")
             
-            # If we have a string column and a numeric column, we can create a bar chart
-            if string_columns and numeric_columns:
-                print(f"[API:{request_id}] LLM said no visualization, but we have appropriate data. Overriding.")
-                recommendation = {
-                    "visualization": True,
-                    "chartType": "bar",
-                    "xAxis": string_columns[0],
-                    "yAxis": numeric_columns[0],
-                    "title": f"{numeric_columns[0]} by {string_columns[0]}",
-                    "explanation": "This data is suitable for a bar chart showing the relationship between categories and values."
-                }
+            # Check if y-axis appears to be an ID column
+            is_id_column = (
+                y_axis.lower() == "id" or 
+                y_axis.lower().endswith("_id") or 
+                (y_axis.lower().endswith("id") and not y_axis.lower() in ["paid", "valid", "invalid"]) or
+                "uuid" in y_axis.lower()
+            )
+            
+            # Count distinct values and check if numeric
+            y_axis_index = columns.index(y_axis) if y_axis in columns else -1
+            
+            if y_axis_index != -1:
+                # Check if numeric
+                is_numeric = True
+                for row in rows[:10]:  # Check first 10 rows
+                    if y_axis_index < len(row) and row[y_axis_index] is not None:
+                        try:
+                            float(row[y_axis_index])
+                        except (ValueError, TypeError):
+                            is_numeric = False
+                            break
+                
+                # If it's an ID column used for y-axis, try to find a better column
+                if is_id_column:
+                    print(f"[API:{request_id}] Detected ID column '{y_axis}' used for y-axis")
+                    
+                    # Find a better numeric column that's not an ID
+                    better_y_columns = []
+                    for col in columns:
+                        if col == y_axis:
+                            continue
+                            
+                        col_idx = columns.index(col)
+                        col_is_id = (
+                            col.lower() == "id" or 
+                            col.lower().endswith("_id") or 
+                            (col.lower().endswith("id") and not col.lower() in ["paid", "valid", "invalid"]) or
+                            "uuid" in col.lower()
+                        )
+                        
+                        if not col_is_id:
+                            # Check if numeric
+                            col_is_numeric = True
+                            for row in rows[:10]:
+                                if col_idx < len(row) and row[col_idx] is not None:
+                                    try:
+                                        float(row[col_idx])
+                                    except (ValueError, TypeError):
+                                        col_is_numeric = False
+                                        break
+                            
+                            if col_is_numeric:
+                                better_y_columns.append(col)
+                    
+                    if better_y_columns:
+                        # Update the recommendation with a better y-axis column
+                        recommendation["yAxis"] = better_y_columns[0]
+                        recommendation["explanation"] += f" (Changed y-axis from ID column '{y_axis}' to '{better_y_columns[0]}')"
+                        print(f"[API:{request_id}] Changed y-axis to '{better_y_columns[0]}'")
+            
+            # Verify x-axis for pie charts
+            if recommendation.get("chartType") == "pie":
+                x_axis = recommendation.get("xAxis", "")
+                x_axis_index = columns.index(x_axis) if x_axis in columns else -1
+                
+                if x_axis_index != -1:
+                    # Count unique values in x-axis
+                    unique_values = set()
+                    for row in rows:
+                        if x_axis_index < len(row) and row[x_axis_index] is not None:
+                            unique_values.add(str(row[x_axis_index]))
+                    
+                    # Too many segments make pie charts unreadable
+                    if len(unique_values) > 8:
+                        print(f"[API:{request_id}] Too many unique values for pie chart: {len(unique_values)}")
+                        
+                        # Fall back to bar chart instead
+                        recommendation["chartType"] = "bar"
+                        recommendation["explanation"] += f" (Changed to bar chart because pie chart would have too many segments ({len(unique_values)}))"
         
         return recommendation
         

@@ -45,7 +45,6 @@ function Home() {
             }
             title={
               <>
-                <span className="text-blue-600 dark:text-blue-400">BlueTurtle</span>
                 <span className="block">Ask Your Database</span>
                 <span className="text-blue-600 dark:text-blue-400">Anything</span>
               </>

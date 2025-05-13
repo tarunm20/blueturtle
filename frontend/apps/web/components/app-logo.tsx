@@ -10,11 +10,13 @@ export function AppLogo({
   label,
   className,
   size = 'medium',
+  showBrandName = false, // New prop for showing the brand name
 }: {
   href?: string | null;
   className?: string;
   label?: string;
   size?: LogoSize;
+  showBrandName?: boolean; // Add this prop
 }) {
   // Size mappings for different contexts
   const sizeMap = {
@@ -48,6 +50,13 @@ export function AppLogo({
         className={cn("h-auto object-contain", sizeClassName)}
         priority
       />
+      
+      {showBrandName && (
+        <div className="ml-1 font-heading"> {/* Reduced margin from ml-3 to ml-1 */}
+          <span className="text-blue-600 dark:text-blue-400 font-bold text-xl md:text-2xl">Blue</span> {/* Increased text size from text-lg to text-xl/text-2xl */}
+          <span className="text-blue-800 dark:text-blue-300 font-bold text-xl md:text-2xl">Turtle</span> {/* Increased text size from text-lg to text-xl/text-2xl */}
+        </div>
+      )}
     </div>
   );
 

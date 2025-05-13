@@ -11,7 +11,7 @@ export function SiteHeader(props: { user?: User | null }) {
   return (
     <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b shadow-sm">
       <Header
-        logo={<AppLogo />}
+        logo={<AppLogo showBrandName={true} />}
         navigation={<SiteNavigation />}
         actions={<SiteHeaderAccountSection user={props.user ?? null} />}
       />

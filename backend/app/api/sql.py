@@ -166,21 +166,27 @@ async def get_db_schema_endpoint(request: Request, db_config: DbConnectionInput)
         # Convert to dict for compatibility with existing functions
         config_dict = db_config.dict(exclude_none=True)
         
-        # Get the schema with the updated function that returns table counts
-        schema_str, schema_dict, table_counts = sql_service.get_schema(config_dict)
-        
-        process_time = time.time() - start_time
-        print(f"[API:{request_id}] Schema processed in {process_time:.2f}s")
-        
-        return {
-            "success": True, 
-            "schema": schema_dict,
-            "tableCounts": table_counts
-        }
+        # Get the schema with proper error handling
+        try:
+            schema_str, schema_dict = sql_service.get_schema(config_dict)
+            
+            # Verify schema dict is valid (prevent "not enough values to unpack" errors)
+            if schema_dict is None:
+                schema_dict = {}
+                
+            process_time = time.time() - start_time
+            print(f"[API:{request_id}] Schema processed in {process_time:.2f}s")
+            
+            return {"success": True, "schema": schema_dict}
+        except Exception as schema_error:
+            print(f"[ERROR:{request_id}] Schema processing failed: {str(schema_error)}")
+            return {"success": False, "message": str(schema_error)}
+            
     except Exception as e:
         process_time = time.time() - start_time
         print(f"[ERROR:{request_id}] Schema processing failed after {process_time:.2f}s: {str(e)}")
         return {"success": False, "message": str(e)}
+    
     
 @router.post("/recommend_visualization")
 async def recommend_visualization(request: Request, req: dict):

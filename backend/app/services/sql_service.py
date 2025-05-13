@@ -9,12 +9,29 @@ def get_schema(db_config: dict) -> tuple:
     start_time = time.time()
     
     try:
-        schema_str, schema_dict, table_counts = get_db_schema(db_config)
+        # Make sure we're passing a valid config
+        if not db_config:
+            raise ValueError("Database configuration is required")
+            
+        # Try to get the schema
+        try:
+            schema_str, schema_dict = get_db_schema(db_config)
+        except ValueError as ve:
+            print(f"{C.ERROR}[ERROR]{C.RESET} Database schema error: {str(ve)}")
+            raise RuntimeError(f"Database schema error: {str(ve)}")
+        except Exception as e:
+            print(f"{C.ERROR}[ERROR]{C.RESET} Unexpected error getting schema: {str(e)}")
+            raise RuntimeError(f"Database schema error: {str(e)}")
+        
+        # Validate the schema (ensure we have both values)
+        if not schema_str or not schema_dict:
+            print(f"{C.ERROR}[ERROR]{C.RESET} Invalid schema returned")
+            raise RuntimeError("Invalid schema returned from database")
         
         process_time = time.time() - start_time
         print(f"{C.SQL}[SQL]{C.RESET} Schema processed in {process_time:.2f}s")
         
-        return schema_str, schema_dict, table_counts
+        return schema_str, schema_dict
         
     except Exception as e:
         print(f"{C.ERROR}[ERROR]{C.RESET} Database schema error: {str(e)}")

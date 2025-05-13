@@ -80,48 +80,69 @@ def test_connection(db_config: dict) -> dict:
 # app/utils/db_utils.py - Improved get_db_schema function
 
 def get_db_schema(db_config: dict) -> tuple:
-    """Get database schema as a string and structured format using SQLAlchemy"""
+    """Get database schema as a string using SQLAlchemy"""
     print(f"{C.SQL}[SQL]{C.RESET} Getting database schema...")
     
     try:
+        # Validate the input
+        if not db_config:
+            raise ValueError("Database configuration is required")
+            
         # Build connection string and create engine
-        conn_string = build_connection_string(db_config)
+        try:
+            conn_string = build_connection_string(db_config)
+        except Exception as e:
+            print(f"{C.ERROR}[ERROR]{C.RESET} Failed to build connection string: {str(e)}")
+            raise ValueError(f"Failed to build connection string: {str(e)}")
+            
         engine = create_engine(conn_string)
         inspector = inspect(engine)
-        metadata = MetaData()
         
         # Get all table names
-        table_names = inspector.get_table_names()
-        print(f"{C.SQL}[SQL]{C.RESET} Found {len(table_names)} tables")
+        try:
+            table_names = inspector.get_table_names()
+            print(f"{C.SQL}[SQL]{C.RESET} Found {len(table_names)} tables")
+        except Exception as e:
+            print(f"{C.ERROR}[ERROR]{C.RESET} Failed to get table names: {str(e)}")
+            raise ValueError(f"Failed to get table names: {str(e)}")
         
         # Build schema string and dict
         schema_str = ""
         schema_dict = {}
-        table_counts = {}
-        
-        # Reflect all tables for metadata access
-        metadata.reflect(bind=engine)
         
         for table_name in table_names:
             columns = []
-            # Get columns for each table
-            for column in inspector.get_columns(table_name):
-                col_name = column['name']
-                col_type = str(column['type'])
-                columns.append(f"{col_name} ({col_type})")
+            try:
+                # Get columns for each table
+                for column in inspector.get_columns(table_name):
+                    col_name = column['name']
+                    col_type = str(column['type'])
+                    columns.append(f"{col_name} ({col_type})")
+            except Exception as e:
+                print(f"{C.WARNING}[WARNING]{C.RESET} Error getting columns for table {table_name}: {str(e)}")
+                # Continue processing other tables even if this one fails
+                continue
             
-            # Get primary key info
-            pk_constraint = inspector.get_pk_constraint(table_name)
-            pk_columns = pk_constraint.get('constrained_columns', [])
+            try:
+                # Get primary key info
+                pk_constraint = inspector.get_pk_constraint(table_name)
+                pk_columns = pk_constraint.get('constrained_columns', [])
+            except Exception as e:
+                print(f"{C.WARNING}[WARNING]{C.RESET} Error getting PK for table {table_name}: {str(e)}")
+                pk_columns = []
             
-            # Get foreign key info
-            fk_info = []
-            for fk in inspector.get_foreign_keys(table_name):
-                if fk['constrained_columns'] and fk['referred_table']:
-                    fk_col = fk['constrained_columns'][0]
-                    ref_table = fk['referred_table']
-                    ref_col = fk['referred_columns'][0] if fk['referred_columns'] else 'id'
-                    fk_info.append(f"{fk_col} -> {ref_table}.{ref_col}")
+            try:
+                # Get foreign key info
+                fk_info = []
+                for fk in inspector.get_foreign_keys(table_name):
+                    if fk['constrained_columns'] and fk['referred_table']:
+                        fk_col = fk['constrained_columns'][0]
+                        ref_table = fk['referred_table']
+                        ref_col = fk['referred_columns'][0] if fk['referred_columns'] else 'id'
+                        fk_info.append(f"{fk_col} -> {ref_table}.{ref_col}")
+            except Exception as e:
+                print(f"{C.WARNING}[WARNING]{C.RESET} Error getting FKs for table {table_name}: {str(e)}")
+                fk_info = []
             
             # Add primary and foreign key info to schema string
             pk_info = f"Primary key: {', '.join(pk_columns)}" if pk_columns else ""
@@ -136,38 +157,14 @@ def get_db_schema(db_config: dict) -> tuple:
                 schema_str += f"  {fk_str}\n"
             
             schema_str += "\n"
-            
-            # Get row counts using SQLAlchemy's ORM - safer than raw SQL
-            try:
-                # Safely get the table from metadata
-                if table_name in metadata.tables:
-                    table = metadata.tables[table_name]
-                    
-                    # Create a count query using SQLAlchemy
-                    with engine.connect() as connection:
-                        # Use func.count for counting rows
-                        from sqlalchemy import func, select
-                        
-                        # Simple count query
-                        count_query = select(func.count()).select_from(table)
-                        result = connection.execute(count_query).scalar()
-                        
-                        # Store the count result
-                        table_counts[table_name] = result if result is not None else 0
-                else:
-                    print(f"{C.WARNING}[WARNING]{C.RESET} Table {table_name} not found in metadata")
-                    table_counts[table_name] = 0
-            except Exception as e:
-                print(f"{C.WARNING}[WARNING]{C.RESET} Could not get row count for {table_name}: {e}")
-                table_counts[table_name] = 0
         
-        return schema_str, schema_dict, table_counts
+        return schema_str, schema_dict
     
     except Exception as e:
         print(f"{C.ERROR}[ERROR]{C.RESET} Schema retrieval error: {str(e)}")
-        raise ValueError(f"Failed to retrieve schema: {str(e)}")
-    
-    
+        # Return a tuple with empty values as fallback
+        return "", {}
+
 def execute_sql(sql: str, db_config: dict) -> dict:
     """Execute SQL query and return results"""
     print(f"{C.SQL}[SQL]{C.RESET} Executing query: {sql}")

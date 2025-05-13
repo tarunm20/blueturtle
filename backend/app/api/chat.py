@@ -216,3 +216,4 @@ async def list_messages(request: Request, conversation_id: str):
     except Exception as e:
         print(f"{C.ERROR}[ERROR:{request_id}]{C.RESET} List messages failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+    

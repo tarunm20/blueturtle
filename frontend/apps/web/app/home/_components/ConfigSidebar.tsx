@@ -206,8 +206,10 @@ export const ConfigSidebar: React.FC<ConfigSidebarProps> = ({
                 <><CheckCircle className="mr-2 h-4 w-4" /> Connected</>
               ) : dbStatus === "error" ? (
                 <><AlertCircle className="mr-2 h-4 w-4" /> Connection Failed</>
+              ) : fetchingSchema ? (
+                "Loading Schema..."
               ) : (
-                "Test Connection"
+                "Connect"
               )}
             </Button>
             

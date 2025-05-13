@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@kit/ui/button';
 import { Textarea } from '@kit/ui/textarea';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Code, EyeOff, Eye } from 'lucide-react';
 import { useChatSessions } from '../hooks/use-chat-sessions';
 import { DatabaseType, ChatMessage, ModelType } from './types';
 import { QueryResultsTable } from './_components/QueryResultsTable';
@@ -12,6 +12,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ChartVisualization } from './_components/ChartVisualization';
 import { VisualizationResponse } from './types';
 import { BarChart2 } from 'lucide-react';
+import { Switch } from '@kit/ui/switch';
+import { Label } from '@kit/ui/label';
 
 const MAX_REGENERATION_ATTEMPTS = 3;
 
@@ -66,6 +68,9 @@ export function ChatInterface({
 
   const [visualizations, setVisualizations] = useState<Record<string, VisualizationResponse>>({});
   const [creatingChart, setCreatingChart] = useState<string | null>(null);
+
+  // New state for showing SQL queries
+  const [showSqlQueries, setShowSqlQueries] = useState<boolean>(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -106,11 +111,6 @@ export function ChatInterface({
           provider: "bedrock",
           model: "anthropic.claude-3-7-sonnet-20250219-v1:0"
           }
-          // llm_config: {
-          //   provider: "ollama",
-          //   model: "llama3.2", // or whatever model you're using
-          //   url: "http://localhost:11434/api/generate"
-          // }
         })
       });
       
@@ -140,10 +140,11 @@ export function ChatInterface({
       }
       
       // Add assistant response to database
+      // Modified: Changed the response text to be more natural and less technical
       const assistantMessage = await addMessage.mutateAsync({
         sessionId,
         role: 'assistant',
-        content: 'I\'m executing the following SQL query:',
+        content: 'Let me find that information for you...',
         sql: data.sql
       });
       
@@ -213,11 +214,6 @@ const createVisualization = async (messageId: string, results: { columns: string
           provider: "bedrock",
           model: "anthropic.claude-3-7-sonnet-20250219-v1:0"
         }
-        // llm_config: {
-        //   provider: "ollama",
-        //   model: "llama3.2",
-        //   url: "http://localhost:11434/api/generate"
-        // }
       })
     });
     
@@ -262,6 +258,7 @@ const createVisualization = async (messageId: string, results: { columns: string
     setCreatingChart(null);
   }
 };
+
   // Handle message submission
   const handleSubmit = async () => {
     const trimmedInput = input?.trim?.() || '';
@@ -343,15 +340,25 @@ const createVisualization = async (messageId: string, results: { columns: string
         throw new Error('Invalid results data');
       }
       
-      // Add success message with results
+      // Modify the existing assistant message with a better response now that we have results
+      const assistantMessage = messagesQuery.data?.find(m => m.id === messageId);
+      if (assistantMessage) {
+        await addMessage.mutateAsync({
+          sessionId,
+          role: 'assistant',
+          content: `Here's what I found (${data.rows?.length || 0} results)`,
+          sql: sql
+        });
+      }
+      
+      // Store query results
       const resultsMsg = await addMessage.mutateAsync({
         sessionId,
         role: 'system',
-        content: `Query returned ${data.rows?.length || 0} rows.`,
+        content: `Results found.`,
         sql: sql
       });
       
-      // Store query results
       if (resultsMsg?.id) {
         await addQueryResults.mutateAsync({
           messageId: resultsMsg.id,
@@ -439,7 +446,8 @@ const createVisualization = async (messageId: string, results: { columns: string
           </div>
           <div>{message.content || ''}</div>
           
-          {message.sql && (
+          {/* Conditionally show SQL based on user preference - only for assistant messages */}
+          {showSqlQueries && message.sql && message.role === 'assistant' && (
             <div className="mt-2 p-2 bg-muted rounded font-mono text-sm overflow-auto">
               <div className="text-xs text-muted-foreground mb-1">SQL Query:</div>
               <div>{message.sql}</div>
@@ -555,8 +563,32 @@ const createVisualization = async (messageId: string, results: { columns: string
         <div ref={messagesEndRef} />
       </div>
       
+      {/* Toggle for SQL visibility */}
+      <div className="border-t border-b p-2 flex items-center justify-end space-x-2 bg-muted/20">
+        <div className="flex items-center space-x-2">
+          <Label htmlFor="show-sql" className="text-xs cursor-pointer">
+            {showSqlQueries ? (
+              <div className="flex items-center text-primary">
+                <Eye className="h-3 w-3 mr-1" />
+                SQL Visible
+              </div>
+            ) : (
+              <div className="flex items-center text-muted-foreground">
+                <EyeOff className="h-3 w-3 mr-1" />
+                SQL Hidden
+              </div>
+            )}
+          </Label>
+          <Switch
+            id="show-sql"
+            checked={showSqlQueries}
+            onCheckedChange={setShowSqlQueries}
+          />
+        </div>
+      </div>
+      
       {/* Input area */}
-      <div className="border-t p-4 flex">
+      <div className="p-4 flex">
         <Textarea
           value={input || ''}
           onChange={(e) => setInput(e?.target?.value || '')}

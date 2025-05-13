@@ -8,7 +8,7 @@ import { Badge } from "@kit/ui/badge";
 import { 
   Accordion, AccordionContent, AccordionItem, AccordionTrigger 
 } from "@kit/ui/accordion";
-import { Database, ChevronDown, ChevronUp, Search } from "lucide-react";
+import { Database, ChevronDown, ChevronUp, Search, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@kit/ui/input";
 import { DBSchema } from "../types";
@@ -17,14 +17,41 @@ interface DatabaseSchemaViewerProps {
   schema: DBSchema;
   isMinimized: boolean;
   toggleMinimize: () => void;
+  isLoading?: boolean; // New prop for loading state
+  tableCounts?: Record<string, number>; // New prop for record counts
 }
 
 export const DatabaseSchemaViewer: React.FC<DatabaseSchemaViewerProps> = ({ 
   schema, 
   isMinimized, 
-  toggleMinimize 
+  toggleMinimize,
+  isLoading = false,
+  tableCounts = {}
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
+  
+  if (isLoading) {
+    return (
+      <Card className="border-primary/10 shadow-sm h-full">
+        <CardHeader className="pb-2 bg-gradient-to-r from-primary/5 to-background flex flex-row justify-between items-center py-2 px-3">
+          <div className="flex items-center">
+            <div className="bg-primary/10 p-1 rounded-md mr-2">
+              <Database className="h-4 w-4 text-primary" />
+            </div>
+            <CardTitle className="text-sm">Database Schema</CardTitle>
+          </div>
+          <Button variant="ghost" size="sm" onClick={toggleMinimize} className="h-7 w-7 p-0">
+            {isMinimized ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+          </Button>
+        </CardHeader>
+        
+        <CardContent className="flex flex-col items-center justify-center p-8 h-[calc(100%-60px)]">
+          <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+          <p className="text-muted-foreground text-sm">Loading database schema...</p>
+        </CardContent>
+      </Card>
+    );
+  }
   
   if (!schema) return null;
   
@@ -104,9 +131,16 @@ export const DatabaseSchemaViewer: React.FC<DatabaseSchemaViewerProps> = ({
                         </svg>
                       </span>
                       <span className="truncate">{tableName}</span>
-                      <Badge variant="outline" className="ml-1 text-[10px] h-4 px-1">
-                        {isValidArray(columns) ? columns.length : 0}
-                      </Badge>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <Badge variant="outline" className="ml-1 text-[10px] h-4 px-1">
+                          {isValidArray(columns) ? columns.length : 0} cols
+                        </Badge>
+                        {tableCounts[tableName] !== undefined && (
+                          <Badge variant="outline" className="text-[10px] h-4 px-1 bg-primary/5">
+                            {tableCounts[tableName].toLocaleString()} rows
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </AccordionTrigger>
                   

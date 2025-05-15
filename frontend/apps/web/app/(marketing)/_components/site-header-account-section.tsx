@@ -1,5 +1,7 @@
+// frontend/apps/web/app/(marketing)/_components/site-header-account-section.tsx
 'use client';
 
+import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 
@@ -8,6 +10,7 @@ import type { User } from '@supabase/supabase-js';
 import { PersonalAccountDropdown } from '@kit/accounts/personal-account-dropdown';
 import { useSignOut } from '@kit/supabase/hooks/use-sign-out';
 import { useUser } from '@kit/supabase/hooks/use-user';
+import { useSupabase } from '@kit/supabase/hooks/use-supabase';
 import { Button } from '@kit/ui/button';
 import { If } from '@kit/ui/if';
 import { Trans } from '@kit/ui/trans';
@@ -34,11 +37,41 @@ export function SiteHeaderAccountSection({
 }: React.PropsWithChildren<{
   user: User | null;
 }>) {
-  if (!user) {
+  const [currentUser, setCurrentUser] = useState<User | null>(user);
+  const supabase = useSupabase();
+
+  // Check for user session on client-side as well
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data.user) {
+        setCurrentUser(data.user);
+      }
+    };
+    
+    checkUser();
+    
+    // Set up auth state listener
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (session?.user) {
+          setCurrentUser(session.user);
+        } else if (event === 'SIGNED_OUT') {
+          setCurrentUser(null);
+        }
+      }
+    );
+    
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  if (!currentUser) {
     return <AuthButtons />;
   }
 
-  return <SuspendedPersonalAccountDropdown user={user} />;
+  return <SuspendedPersonalAccountDropdown user={currentUser} />;
 }
 
 function SuspendedPersonalAccountDropdown(props: { user: User | null }) {

@@ -11,10 +11,11 @@ import pathsConfig from '~/config/paths.config';
 export async function GET(request: NextRequest) {
   const service = createAuthCallbackService(getSupabaseServerClient());
 
-  // Exchange the code for a session
-  await service.exchangeCodeForSession(request, {
+  // Exchange the code for a session and get redirect URL
+  const url = await service.verifyTokenHash(request, {
     redirectPath: pathsConfig.app.home,
   });
 
-  return redirect(pathsConfig.app.home);
+  // Redirect to the home page
+  return redirect(url.toString());
 }

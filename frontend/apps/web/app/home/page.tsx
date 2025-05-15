@@ -47,7 +47,7 @@ export default function HomePage() {
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const supabase = useSupabase();
 
-  const API_URL =  process.env.NEXT_PUBLIC_API_URL;
+  const API_URL =  "https://localhost:8000"//process.env.NEXT_PUBLIC_API_URL;
   
   // Mobile detection
   useEffect(() => {

@@ -246,15 +246,7 @@ function Home() {
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="border-blue-300 dark:border-blue-700">
-              <Link href="/contact">
-                Schedule Demo
-              </Link>
-            </Button>
           </div>
-          <p className="text-sm text-muted-foreground mt-4">
-            No credit card required. Free for 14 days.
-          </p>
         </div>
       </div>
     </div>

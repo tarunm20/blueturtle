@@ -74,7 +74,7 @@ export function ChatInterface({
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const API_URL = "https://localhost:8000"//process.env.NEXT_PUBLIC_API_URL;
+  const API_URL = process.env.NEXT_PUBLIC_API_URL//"https://localhost:8000";
 
   // Auto-scroll to bottom when messages update
   useEffect(() => {

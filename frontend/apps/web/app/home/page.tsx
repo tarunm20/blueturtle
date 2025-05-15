@@ -47,7 +47,7 @@ export default function HomePage() {
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const supabase = useSupabase();
 
-  const API_URL =  "https://localhost:8000"//process.env.NEXT_PUBLIC_API_URL;
+  const API_URL =  process.env.NEXT_PUBLIC_API_URL//"https://localhost:8000";
   
   // Mobile detection
   useEffect(() => {
@@ -581,7 +581,7 @@ export default function HomePage() {
                     <p className="text-muted-foreground mb-4 max-w-md mx-auto">
                       {isMobile ? 
                         "Tap the menu icon in the top-left to connect to your database." :
-                        "Use the sidebar to connect to your database before starting a chat."
+                        "Use the sidebar to connect to your database before starting a chat. You also have the option of loading our sample database by clicking the sample database button."
                       }
                     </p>
                   </div>

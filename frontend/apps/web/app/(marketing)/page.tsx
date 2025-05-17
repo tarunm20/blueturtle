@@ -240,12 +240,7 @@ function Home() {
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button asChild size="lg" variant="default" className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 gap-2">
-              <Link href="/auth/sign-up">
-                Try Free Demo
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Link>
-            </Button>
+            <MainCallToActionButton />
           </div>
         </div>
       </div>
@@ -256,14 +251,23 @@ function Home() {
 function MainCallToActionButton() {
   return (
     <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-      <CtaButton className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700">
-        <Link href="/auth/sign-up">
-          <span className="flex items-center space-x-0.5">
-            <span>Try Free Demo</span>
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </span>
-        </Link>
-      </CtaButton>
+            <CtaButton asChild size="lg" variant="default" className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 gap-2">
+              <Link href="/auth/sign-up">
+                Try Free Demo
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Link>
+            </CtaButton>
+            
+            <CtaButton variant="outline" className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-950/30">
+              <Link href="/early-access">
+                <span className="flex items-center space-x-0.5">
+                  <span>Early Access Sign-up</span>
+                  <Badge variant="default" className="ml-2 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs">
+                    Limited
+                  </Badge>
+                </span>
+              </Link>
+            </CtaButton>
     </div>
   );
 }

@@ -28,6 +28,10 @@ function getPaths() {
     '/cookie-policy',
     '/terms-of-service',
     '/privacy-policy',
+    '/auth/sign-in',
+    '/auth/sign-up',
+    '/auth/password-reset',
+    '/home'
     // add more paths here
   ];
 
